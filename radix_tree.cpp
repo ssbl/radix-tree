@@ -102,7 +102,7 @@ bool radix_tree::insert(const unsigned char* key, std::size_t size)
         current_node->key_ = false;
         current_node->split(current_node->data_ + j,
                             current_node->size_ - j);
-        current_node->size_ = std::min(current_node->size_, j);
+        current_node->size_ = j;
         ++size_;
         return true;
     }
@@ -113,7 +113,7 @@ bool radix_tree::insert(const unsigned char* key, std::size_t size)
         current_node->split(current_node->data_ + j,
                             current_node->size_ - j,
                             true);
-        current_node->size_ = std::min(current_node->size_, j);
+        current_node->size_ = j;
         ++size_;
         return true;
     }
