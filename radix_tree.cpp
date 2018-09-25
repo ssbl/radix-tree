@@ -98,7 +98,16 @@ bool radix_tree::insert(const unsigned char* key, std::size_t size)
         return true;
     }
 
-    // All characters match.
+    // All characters match, but we still might need to split.
+    if (j != current_node->size_) {
+        // This key and the current node have a common prefix.
+        current_node->add_child(current_node->data_ + j,
+                                current_node->size_ - j);
+        current_node->size_ = j;
+        ++size_;
+        return true;
+    }
+
     assert(i == size);
     assert(current_node->key_);
     return false;

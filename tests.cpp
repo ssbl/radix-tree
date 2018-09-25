@@ -2,6 +2,9 @@
 
 #include <cassert>
 #include <string>
+#include <vector>
+
+constexpr bool show_trees = true;
 
 static bool tree_insert(radix_tree& tree, std::string& key)
 {
@@ -32,9 +35,11 @@ static void insert_test1()
     assert(!tree_insert(tree, testing));
     assert(!tree_insert(tree, test));
 
-    tree.print();
+    if (show_trees)
+        tree.print();
 }
 
+// Example from wikipedia.
 static void insert_test2()
 {
     radix_tree tree;
@@ -48,7 +53,24 @@ static void insert_test2()
     for (auto& key : keys)
         assert(!tree_insert(tree, key));
 
-    tree.print();
+    if (show_trees)
+        tree.print();
+}
+
+// Keys with a common prefix, with the smaller key being inserted
+// after the larger.
+static void insert_test3()
+{
+    radix_tree tree;
+
+    std::string larger = "xyzzy";
+    std::string smaller = "xyz";
+
+    assert(tree_insert(tree, larger));
+    assert(tree_insert(tree, smaller));
+
+    if (show_trees)
+        tree.print();
 }
 
 int main()
@@ -56,4 +78,5 @@ int main()
     smoke_test();
     insert_test1();
     insert_test2();
+    insert_test3();
 }
