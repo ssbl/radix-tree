@@ -40,7 +40,7 @@ static void insert_test2()
     radix_tree tree;
 
     std::vector<std::string> keys = {
-        "test", "toaster", "toasting", "slow"//, "slowly"
+        "test", "toaster", "toasting", "slow", "slowly"
     };
 
     for (auto& key : keys)

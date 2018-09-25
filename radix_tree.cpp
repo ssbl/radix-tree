@@ -76,12 +76,15 @@ bool radix_tree::insert(const unsigned char* key, std::size_t size)
         } else {
             if (current_node->data_ && key[i] == current_node->data_[0])
                 ++i;
+            node* parent_node = current_node;
             for (std::size_t k = 0; k < current_node->children_.size(); ++k) {
                 if (i < size && current_node->next_chars_[k] == key[i]) {
                     current_node = current_node->children_[k];
                     break;
                 }
             }
+            if (current_node == parent_node)
+                break; // No outgoing edges.
         }
     }
 
