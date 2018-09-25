@@ -56,36 +56,24 @@ bool radix_tree::insert(const unsigned char* key, std::size_t size)
 
     while ((current_node->size_ > 0 || current_node->children_.size() > 0)
            && i < size) {
-        if (current_node->compressed()) {
-            for (j = 0; j < current_node->size_; ++j) {
-                if (current_node->data_[j] != key[i])
-                    break;
-                ++i;
-            }
-            if (j != current_node->size_)
-                break; // Couldn't match the whole string, might need to split.
-            node* parent_node = current_node;
-            for (std::size_t k = 0; k < current_node->children_.size(); ++k) {
-                if (i < size && current_node->next_chars_[k] == key[i]) {
-                    current_node = current_node->children_[k];
-                    break;
-                }
-            }
-            if (current_node == parent_node)
-                break; // No outgoing edges.
-        } else {
-            if (current_node->data_ && key[i] == current_node->data_[0])
-                ++i;
-            node* parent_node = current_node;
-            for (std::size_t k = 0; k < current_node->children_.size(); ++k) {
-                if (i < size && current_node->next_chars_[k] == key[i]) {
-                    current_node = current_node->children_[k];
-                    break;
-                }
-            }
-            if (current_node == parent_node)
-                break; // No outgoing edges.
+        for (j = 0; j < current_node->size_; ++j) {
+            if (current_node->data_[j] != key[i])
+                break;
+            ++i;
         }
+        if (j != current_node->size_)
+            break; // Couldn't match the whole string, might need to split.
+
+        // Check if there are any outgoing edges from this node.
+        node* parent_node = current_node;
+        for (std::size_t k = 0; k < current_node->children_.size(); ++k) {
+            if (i < size && current_node->next_chars_[k] == key[i]) {
+                current_node = current_node->children_[k];
+                break;
+            }
+        }
+        if (current_node == parent_node)
+            break; // No outgoing edges.
     }
 
     if (i == 0) {
