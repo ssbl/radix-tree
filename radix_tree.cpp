@@ -1,6 +1,7 @@
 #include "radix_tree.hpp"
 
 #include <cassert>
+#include <cstdio>
 #include <cstring>
 
 node::node()
@@ -112,7 +113,21 @@ bool radix_tree::insert(const unsigned char* key, std::size_t size)
     return false;
 }
 
+static void visit_child(node const* child_node, std::size_t level)
+{
+    for (std::size_t i = 0; i < 4 * (level - 1) + level; ++i)
+        std::putchar(' ');
+    std::printf("`-> ");
+    for (std::size_t i = 0; i < child_node->size_; ++i)
+        std::printf("%c", child_node->data_[i]);
+    std::printf("\n");
+    for (std::size_t i = 0; i < child_node->children_.size(); ++i)
+        visit_child(child_node->children_[i], level + 1);
+}
+
 void radix_tree::print() const
 {
-
+    std::puts("[root]");
+    for (std::size_t i = 0; i < root_->children_.size(); ++i)
+        visit_child(root_->children_[i], 1);
 }

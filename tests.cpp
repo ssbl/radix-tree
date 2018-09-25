@@ -31,6 +31,8 @@ static void insert_test1()
     assert(tree_insert(tree, testing));
     assert(!tree_insert(tree, testing));
     assert(!tree_insert(tree, test));
+
+    tree.print();
 }
 
 static void insert_test2()
@@ -38,13 +40,15 @@ static void insert_test2()
     radix_tree tree;
 
     std::vector<std::string> keys = {
-        "test", "toaster", "toasting", "slow", "slowly"
+        "test", "toaster", "toasting", "slow"//, "slowly"
     };
 
     for (auto& key : keys)
         assert(tree_insert(tree, key));
     for (auto& key : keys)
         assert(!tree_insert(tree, key));
+
+    tree.print();
 }
 
 int main()

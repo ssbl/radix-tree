@@ -37,8 +37,9 @@ public:
 
     // TODO: apply
 
-private:
     void print() const;
+
+private:
 
     node* root_;
     std::size_t size_;
