@@ -57,17 +57,19 @@ static void insert_test2()
         tree.print();
 }
 
-// Keys with a common prefix, with the smaller key being inserted
-// after the larger.
+// Insert a key which is a prefix of an already-inserted key.
 static void insert_test3()
 {
     radix_tree tree;
 
-    std::string larger = "xyzzy";
-    std::string smaller = "xyz";
+    std::vector<std::string> keys = {
+        "test", "toaster", "toasting", "to"
+    };
 
-    assert(tree_insert(tree, larger));
-    assert(tree_insert(tree, smaller));
+    for (auto& key : keys)
+        assert(tree_insert(tree, key));
+    for (auto& key : keys)
+        assert(!tree_insert(tree, key));
 
     if (show_trees)
         tree.print();

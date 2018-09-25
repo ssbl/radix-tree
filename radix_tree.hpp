@@ -18,7 +18,8 @@ struct node
     ~node() = default;
 
     bool compressed() const;
-    void add_child(const unsigned char* key, std::size_t size);
+    void split(const unsigned char* key, std::size_t size,
+               bool single);
 };
 
 class radix_tree
