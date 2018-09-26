@@ -18,8 +18,9 @@ struct node
     ~node() = default;
 
     bool compressed() const;
-    void split(const unsigned char* key, std::size_t size,
-               bool single);
+    node* make_edge(const unsigned char* key, std::size_t size) const;
+    node* add_edge(const unsigned char* key, std::size_t size);
+    node* split(const unsigned char* key, std::size_t size, bool is_key);
 };
 
 class radix_tree

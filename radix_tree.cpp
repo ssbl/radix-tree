@@ -1,9 +1,9 @@
 #include "radix_tree.hpp"
 
-#include <algorithm>
 #include <cassert>
 #include <cstdio>
 #include <cstring>
+#include <utility>
 
 node::node()
     : key_(false)
@@ -19,28 +19,42 @@ bool node::compressed() const
     return size_ > 1;
 }
 
-void node::split(const unsigned char* key, std::size_t size,
-                 bool single = false)
+node* node::make_edge(const unsigned char* key, std::size_t size) const
 {
     assert(key);
     assert(size > 0);
-    assert(next_chars_.size() == children_.size());
 
-    unsigned char first_char = key[0];
     node* child = new node();
     child->key_ = true;
     child->size_ = size;
     child->data_ = new unsigned char[size];
     std::memcpy(child->data_, key, size);
 
-    if (single) {
-        std::swap(child->children_, children_);
-        std::swap(child->next_chars_, next_chars_);
-        std::swap(child->key_, key_);
-    }
+    return child;
+}
 
-    next_chars_.emplace_back(first_char);
+node* node::add_edge(const unsigned char* key, std::size_t size)
+{
+    node* child = make_edge(key, size);
+
+    next_chars_.emplace_back(key[0]);
     children_.emplace_back(child);
+
+    return child;
+}
+
+node* node::split(const unsigned char* key, std::size_t size, bool is_key)
+{
+    node* child = make_edge(key, size);
+
+    child->key_ = is_key;
+    std::swap(child->children_, children_);
+    std::swap(child->next_chars_, next_chars_);
+
+    next_chars_.emplace_back(key[0]);
+    children_.emplace_back(child);
+
+    return child;
 }
 
 // ----------------------------------------------------------------------
@@ -85,24 +99,30 @@ bool radix_tree::insert(const unsigned char* key, std::size_t size)
     }
 
     if (i == 0) {
-        // No characters matched, create a new child node.
-        current_node->split(key, size);
+        // No characters matched, create a new outgoing edge.
+        current_node->add_edge(key, size);
         ++size_;
         return true;
     }
 
     if (i != size) {
         // Some characters match, we might have to split the node.
-        current_node->split(key + i, size - i);
         if (j == current_node->size_) {
+            // No need to split since all characters in the current
+            // node match. Create an outgoing edge with the remaining
+            // characters in the key.
+            current_node->add_edge(key + i, size - i);
             ++size_;
             return true;
         }
 
-        current_node->key_ = false;
+        // There was a mismatch, so we need to split this node.
         current_node->split(current_node->data_ + j,
-                            current_node->size_ - j);
+                            current_node->size_ - j,
+                            current_node->key_);
+        current_node->key_ = false;
         current_node->size_ = j;
+        current_node->add_edge(key + i, size - i);
         ++size_;
         return true;
     }
@@ -112,13 +132,15 @@ bool radix_tree::insert(const unsigned char* key, std::size_t size)
         // This key is a prefix of the current node.
         current_node->split(current_node->data_ + j,
                             current_node->size_ - j,
-                            true);
+                            current_node->key_);
         current_node->size_ = j;
+        current_node->key_ = true;
         ++size_;
         return true;
     }
 
     assert(i == size);
+    assert(j == current_node->size_);
     assert(current_node->key_);
     return false;
 }
