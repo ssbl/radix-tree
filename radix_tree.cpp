@@ -145,6 +145,50 @@ bool radix_tree::insert(const unsigned char* key, std::size_t size)
     return false;
 }
 
+bool radix_tree::erase(const unsigned char* key, std::size_t size)
+{
+    assert(key);
+    assert(size > 0);
+
+    std::size_t i = 0; // Number of characters matched in key.
+    std::size_t j = 0; // Number of characters matched in current node.
+    std::size_t k = 0; // Index of outgoing edge from the parent node.
+    node* current_node = root_;
+    node* parent_node = current_node;
+
+    while ((current_node->size_ > 0 || current_node->children_.size() > 0)
+           && i < size) {
+        for (j = 0; j < current_node->size_; ++j) {
+            if (current_node->data_[j] != key[i])
+                break;
+            ++i;
+        }
+        if (j != current_node->size_)
+            break; // Couldn't match the whole string, might need to split.
+
+        // Check if there's an outgoing edge from this node.
+        parent_node = current_node;
+        for (k = 0; k < current_node->children_.size(); ++k) {
+            if (i < size && current_node->next_chars_[k] == key[i]) {
+                current_node = current_node->children_[k];
+                break;
+            }
+        }
+        if (current_node == parent_node)
+            break; // No outgoing edge.
+    }
+
+    if (i != size && j != current_node->size_ && !current_node->key_)
+        return false;
+
+    if (current_node->children_.size() > 1) {
+        current_node->key_ = false;
+        return true;
+    }
+
+    return true;
+}
+
 static void visit_child(node const* child_node, std::size_t level)
 {
     assert(level > 0);

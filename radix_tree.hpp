@@ -33,7 +33,7 @@ public:
     bool insert(const unsigned char* key, std::size_t size);
 
     // Returns true if the key was actually removed from the tree.
-    bool erase(unsigned char* key, std::size_t size);
+    bool erase(const unsigned char* key, std::size_t size);
 
     bool contains(unsigned char* key, std::size_t size) const;
 
