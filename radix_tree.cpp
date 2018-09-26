@@ -152,7 +152,7 @@ bool radix_tree::erase(const unsigned char* key, std::size_t size)
 
     std::size_t i = 0; // Number of characters matched in key.
     std::size_t j = 0; // Number of characters matched in current node.
-    std::size_t k = 0; // Index of outgoing edge from the parent node.
+    std::size_t edge_idx = 0; // Index of outgoing edge from the parent node.
     node* current_node = root_;
     node* parent_node = current_node;
 
@@ -167,22 +167,44 @@ bool radix_tree::erase(const unsigned char* key, std::size_t size)
             break; // Couldn't match the whole string, might need to split.
 
         // Check if there's an outgoing edge from this node.
-        parent_node = current_node;
-        for (k = 0; k < current_node->children_.size(); ++k) {
+        node* next_node = current_node;
+        for (std::size_t k = 0; k < current_node->children_.size(); ++k) {
             if (i < size && current_node->next_chars_[k] == key[i]) {
-                current_node = current_node->children_[k];
+                edge_idx = k;
+                next_node = current_node->children_[k];
                 break;
             }
         }
-        if (current_node == parent_node)
+        if (next_node == current_node)
             break; // No outgoing edge.
+        parent_node = current_node;
+        current_node = next_node;
     }
 
     if (i != size && j != current_node->size_ && !current_node->key_)
         return false;
 
-    if (current_node->children_.size() > 1) {
+    assert(parent_node != current_node);
+
+    std::size_t outgoing_edges = current_node->children_.size();
+    if (outgoing_edges > 1) {
         current_node->key_ = false;
+        --size_;
+        return true;
+    }
+
+    if (outgoing_edges == 1) {
+        // Merge this node with the single child node.
+        node* child = current_node->children_.front();
+        std::size_t merged_len = current_node->size_ + child->size_;
+        auto* merged_data = new unsigned char[merged_len];
+        std::memcpy(merged_data, current_node->data_, current_node->size_);
+        std::memcpy(merged_data + current_node->size_, child->data_,
+                    child->size_);
+        child->data_ = merged_data;
+        child->size_ = merged_len;
+        parent_node->children_[edge_idx] = child;
+        --size_;
         return true;
     }
 

@@ -4,12 +4,18 @@
 #include <string>
 #include <vector>
 
-constexpr bool show_trees = true;
+constexpr bool show_trees = false;
 
 static bool tree_insert(radix_tree& tree, std::string& key)
 {
     auto* data = reinterpret_cast<const unsigned char*>(key.data());
     return tree.insert(data, key.size());
+}
+
+static bool tree_erase(radix_tree& tree, std::string& key)
+{
+    auto* data = reinterpret_cast<const unsigned char*>(key.data());
+    return tree.erase(data, key.size());
 }
 
 static void smoke_test()
@@ -75,10 +81,26 @@ static void insert_test3()
         tree.print();
 }
 
+static void erase_test()
+{
+    radix_tree tree;
+
+    std::string test = "test";
+    std::string testing = "testing";
+
+    tree_insert(tree, test);
+    tree_insert(tree, testing);
+
+    assert(tree_erase(tree, test));
+
+    tree.print();
+}
+
 int main()
 {
     smoke_test();
     insert_test1();
     insert_test2();
     insert_test3();
+    erase_test();
 }
