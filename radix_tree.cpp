@@ -164,7 +164,7 @@ bool radix_tree::erase(const unsigned char* key, std::size_t size)
             ++i;
         }
         if (j != current_node->size_)
-            break; // Couldn't match the whole string, might need to split.
+            break;
 
         // Check if there's an outgoing edge from this node.
         node* next_node = current_node;
@@ -208,6 +208,33 @@ bool radix_tree::erase(const unsigned char* key, std::size_t size)
         return true;
     }
 
+    if (parent_node->children_.size() == 2 && !parent_node->key_) {
+        // We can merge the parent node with its other child node.
+        node* other_child = parent_node->children_[!edge_idx];
+        std::size_t merged_len = parent_node->size_ + other_child->size_;
+        auto* merged_data = new unsigned char[merged_len];
+        std::memcpy(merged_data, parent_node->data_, parent_node->size_);
+        std::memcpy(merged_data + parent_node->size_, other_child->data_,
+                    other_child->size_);
+        parent_node->data_ = merged_data;
+        parent_node->size_ = merged_len;
+        std::swap(parent_node->key_, other_child->key_);
+        std::swap(parent_node->children_, other_child->children_);
+        std::swap(parent_node->next_chars_, other_child->next_chars_);
+        --size_;
+        return true;
+    }
+
+    // This is a leaf node which can't be merged with its parent.
+    // Remove the outgoing edge to this node from the parent.
+    assert(outgoing_edges == 0);
+
+    std::swap(parent_node->children_[edge_idx], parent_node->children_.back());
+    std::swap(parent_node->next_chars_[edge_idx],
+              parent_node->next_chars_.back());
+    parent_node->children_.pop_back();
+    parent_node->next_chars_.pop_back();
+    --size_;
     return true;
 }
 

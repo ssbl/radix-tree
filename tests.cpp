@@ -81,7 +81,8 @@ static void insert_test3()
         tree.print();
 }
 
-static void erase_test()
+// Erase a node with a single outgoing edge.
+static void erase_test1()
 {
     radix_tree tree;
 
@@ -96,11 +97,28 @@ static void erase_test()
     tree.print();
 }
 
+// Erase a node with a parent that has two outgoing edges.
+static void erase_test2()
+{
+    radix_tree tree;
+
+    std::string tester = "tester";
+    std::string testing = "testing";
+
+    tree_insert(tree, tester);
+    tree_insert(tree, testing);
+
+    assert(tree_erase(tree, tester));
+
+    tree.print();
+}
+
 int main()
 {
     smoke_test();
     insert_test1();
     insert_test2();
     insert_test3();
-    erase_test();
+    erase_test1();
+    erase_test2();
 }
