@@ -181,7 +181,7 @@ bool radix_tree::erase(const unsigned char* key, std::size_t size)
         current_node = next_node;
     }
 
-    if (i != size && j != current_node->size_ && !current_node->key_)
+    if (i != size || j != current_node->size_ || !current_node->key_)
         return false;
 
     assert(parent_node != current_node);
