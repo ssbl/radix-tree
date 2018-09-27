@@ -1,7 +1,9 @@
 #include "radix_tree.hpp"
 
 #include <cassert>
+#include <cstdlib>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 constexpr bool show_trees = false;
@@ -101,7 +103,8 @@ static void erase_test1()
 
     assert(tree_erase(tree, test));
 
-    tree.print();
+    if (show_trees)
+        tree.print();
 }
 
 // Erase a node with a parent that has two outgoing edges.
@@ -117,7 +120,53 @@ static void erase_test2()
 
     assert(tree_erase(tree, tester));
 
-    tree.print();
+    if (show_trees)
+        tree.print();
+}
+
+static std::string random_key(std::size_t key_length)
+{
+    const char* chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+    const int size = 36;
+
+    std::string key;
+    key.reserve(key_length);
+
+    for (std::size_t i = 0; i < key_length; ++i)
+        key.push_back(chars[std::rand() % size]);
+
+    return key;
+}
+
+static bool fuzz_test(std::size_t operations = 100000)
+{
+    radix_tree tree;
+    std::unordered_set<std::string> set;
+    std::size_t key_length = 50;
+
+    for (std::size_t i = 0; i < operations; ++i) {
+        // Insert or delete a random key from both.
+        std::size_t len = (static_cast<std::size_t>(std::rand())
+                           % key_length) + 1;
+        std::string key = random_key(len);
+        if (std::rand() % 2) {
+            std::printf("insert: %s\n", key.c_str());
+            bool tree_result = tree_insert(tree, key);
+            bool set_result = set.insert(key).second;
+            if (tree_result != set_result) {
+                return false;
+            }
+        } else {
+            std::printf("erase: %s\n", key.c_str());
+            bool tree_result = tree_erase(tree, key);
+            bool set_result = set.erase(key) == 1;
+            if (tree_result != set_result) {
+                return false;
+            }
+        }
+    }
+
+    return true;
 }
 
 int main()
@@ -128,4 +177,5 @@ int main()
     insert_test3();
     erase_test1();
     erase_test2();
+    assert(fuzz_test());
 }
