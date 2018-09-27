@@ -141,7 +141,13 @@ bool radix_tree::insert(const unsigned char* key, std::size_t size)
 
     assert(i == size);
     assert(j == current_node->size_);
-    assert(current_node->key_);
+
+    // This node might not be marked as a key, even if all characters match.
+    if (!current_node->key_) {
+        current_node->key_ = true;
+        return true;
+    }
+
     return false;
 }
 
