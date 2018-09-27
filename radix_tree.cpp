@@ -225,8 +225,9 @@ bool radix_tree::erase(const unsigned char* key, std::size_t size)
         return true;
     }
 
-    // This is a leaf node which can't be merged with its parent.
-    // Remove the outgoing edge to this node from the parent.
+    // This is a leaf node that doesn't leave its parent with one
+    // outgoing edge. Remove the outgoing edge to this node from the
+    // parent.
     assert(outgoing_edges == 0);
 
     std::swap(parent_node->children_[edge_idx], parent_node->children_.back());
@@ -236,6 +237,40 @@ bool radix_tree::erase(const unsigned char* key, std::size_t size)
     parent_node->next_chars_.pop_back();
     --size_;
     return true;
+}
+
+bool radix_tree::contains(const unsigned char* key, std::size_t size) const
+{
+    assert(key);
+    assert(size > 0);
+
+    std::size_t i = 0; // Number of characters matched in key.
+    std::size_t j = 0; // Number of characters matched in current node.
+    node* current_node = root_;
+
+    while ((current_node->size_ > 0 || current_node->children_.size() > 0)
+           && i < size) {
+        for (j = 0; j < current_node->size_; ++j) {
+            if (current_node->data_[j] != key[i])
+                break;
+            ++i;
+        }
+        if (j != current_node->size_)
+            break;
+
+        // Check if there's an outgoing edge from this node.
+        node* parent_node = current_node;
+        for (std::size_t k = 0; k < current_node->children_.size(); ++k) {
+            if (i < size && current_node->next_chars_[k] == key[i]) {
+                current_node = current_node->children_[k];
+                break;
+            }
+        }
+        if (current_node == parent_node)
+            break; // No outgoing edge.
+    }
+
+    return i == size && j == current_node->size_ && current_node->key_;
 }
 
 static void visit_child(node const* child_node, std::size_t level)

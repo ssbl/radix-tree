@@ -35,7 +35,7 @@ public:
     // Returns true if the key was actually removed from the tree.
     bool erase(const unsigned char* key, std::size_t size);
 
-    bool contains(unsigned char* key, std::size_t size) const;
+    bool contains(const unsigned char* key, std::size_t size) const;
 
     // TODO: apply
 

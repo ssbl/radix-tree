@@ -18,6 +18,12 @@ static bool tree_erase(radix_tree& tree, std::string& key)
     return tree.erase(data, key.size());
 }
 
+static bool tree_contains(radix_tree const& tree, std::string& key)
+{
+    auto* data = reinterpret_cast<const unsigned char*>(key.data());
+    return tree.contains(data, key.size());
+}
+
 static void smoke_test()
 {
     radix_tree tree;
@@ -25,8 +31,9 @@ static void smoke_test()
     std::string key = "foo";
 
     assert(tree_insert(tree, key));
-    // assert(tree.contains(data, key.size()));
-    // assert(tree.erase(data, key.size()));
+    assert(tree_contains(tree, key));
+    assert(tree_erase(tree, key));
+    assert(!tree_contains(tree, key));
 }
 
 static void insert_test1()
