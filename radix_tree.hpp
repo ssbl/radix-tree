@@ -40,6 +40,7 @@ public:
     // TODO: apply
 
     void print() const;
+    std::size_t size() const;
 
 private:
 

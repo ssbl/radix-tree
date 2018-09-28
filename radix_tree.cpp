@@ -280,6 +280,11 @@ bool radix_tree::contains(const unsigned char* key, std::size_t size) const
     return i == size && j == current_node->size_ && current_node->key_;
 }
 
+std::size_t radix_tree::size() const
+{
+    return size_;
+}
+
 static void visit_child(node const* child_node, std::size_t level)
 {
     assert(level > 0);
