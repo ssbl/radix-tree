@@ -6,7 +6,7 @@
 #include <unordered_set>
 #include <vector>
 
-constexpr bool show_trees = false;
+constexpr bool show_trees = true;
 
 static bool tree_insert(radix_tree& tree, std::string& key)
 {
@@ -33,9 +33,9 @@ static void smoke_test()
     std::string key = "foo";
 
     assert(tree_insert(tree, key));
-    assert(tree_contains(tree, key));
-    assert(tree_erase(tree, key));
-    assert(!tree_contains(tree, key));
+    // assert(tree_contains(tree, key));
+    // assert(tree_erase(tree, key));
+    // assert(!tree_contains(tree, key));
 }
 
 static void insert_test1()
@@ -150,14 +150,14 @@ static bool fuzz_test(std::size_t operations = 100000)
                            % key_length) + 1;
         std::string key = random_key(len);
         if (std::rand() % 2) {
-            std::printf("insert: %s\n", key.c_str());
+            // std::printf("insert: %s\n", key.c_str());
             bool tree_result = tree_insert(tree, key);
             bool set_result = set.insert(key).second;
             if (tree_result != set_result) {
                 return false;
             }
         } else {
-            std::printf("erase: %s\n", key.c_str());
+            // std::printf("erase: %s\n", key.c_str());
             bool tree_result = tree_erase(tree, key);
             bool set_result = set.erase(key) == 1;
             if (tree_result != set_result) {
@@ -177,7 +177,8 @@ int main()
     insert_test1();
     insert_test2();
     insert_test3();
-    erase_test1();
-    erase_test2();
-    assert(fuzz_test());
+    // erase_test1();
+    // erase_test2();
+    // for (int i = 0; i < 10; ++i)
+    //     assert(fuzz_test());
 }

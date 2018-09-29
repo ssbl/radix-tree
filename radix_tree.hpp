@@ -2,26 +2,39 @@
 #define RADIX_TREE_HPP
 
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <vector>
 
 struct node
 {
-    bool key_;
-    std::size_t refs_;
-    std::size_t size_;
-    unsigned char* data_;
-    std::vector<unsigned char> next_chars_;
-    std::vector<node*> children_;
+    std::uint32_t refcount_;
+    std::uint32_t prefix_len_;
+    std::uint32_t nedges_;
+    unsigned char data_[];
 
     node();
     ~node() = default;
 
-    bool compressed() const;
-    node* make_edge(const unsigned char* key, std::size_t size) const;
-    node* add_edge(const unsigned char* key, std::size_t size);
-    node* split(const unsigned char* key, std::size_t size, bool is_key);
+    std::size_t size() const;
+    unsigned char* prefix();
+    unsigned char* first_bytes();
+    unsigned char first_byte_at(std::size_t i);
+    unsigned char* node_ptrs();
+    node* node_at(std::size_t i);
+    void set_prefix(unsigned char const* prefix);
+    void set_first_bytes(unsigned char const* bytes);
+    void set_first_byte_at(std::size_t i, unsigned char byte);
+    void set_node_ptrs(unsigned char const* ptrs);
+    void set_node_at(std::size_t i, node const* ptr);
 };
+
+node* make_node(std::uint32_t refcount,
+                std::uint32_t prefix_length,
+                std::uint32_t nedges);
+void resize(node** n, std::uint32_t prefix_length, std::size_t nedges);
+node* add_edge(node* n, const unsigned char* key, std::size_t size);
+node* split(node* n, const unsigned char* key, std::size_t size);
 
 class radix_tree
 {
@@ -39,11 +52,10 @@ public:
 
     // TODO: apply
 
-    void print() const;
+    void print();
     std::size_t size() const;
 
 private:
-
     node* root_;
     std::size_t size_;
 };

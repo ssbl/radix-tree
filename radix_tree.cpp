@@ -6,55 +6,145 @@
 #include <utility>
 
 node::node()
-    : key_(false)
-    , refs_(1)
-    , size_(0)
-    , data_(nullptr)
-    , next_chars_()
-    , children_()
+    : refcount_(0)
+    , prefix_len_(0)
+    , nedges_(0)
 {}
 
-bool node::compressed() const
+std::size_t node::size() const
 {
-    return size_ > 1;
+    return sizeof(node) + prefix_len_ + nedges_ + nedges_ * sizeof(node*);
 }
 
-node* node::make_edge(const unsigned char* key, std::size_t size) const
+unsigned char* node::prefix()
+{
+    return data_;
+}
+
+void node::set_prefix(unsigned char const* bytes)
+{
+    std::memcpy(prefix(), bytes, prefix_len_);
+}
+
+unsigned char* node::first_bytes()
+{
+    return data_ + prefix_len_;
+}
+
+void node::set_first_bytes(unsigned char const* bytes)
+{
+    std::memcpy(first_bytes(), bytes, nedges_);
+}
+
+unsigned char node::first_byte_at(std::size_t i)
+{
+    assert(i < nedges_);
+    return *(first_bytes() + i);
+}
+
+void node::set_first_byte_at(std::size_t i, unsigned char byte)
+{
+    assert(i < nedges_);
+    *(first_bytes() + i) = byte;
+}
+
+unsigned char* node::node_ptrs()
+{
+    return data_ + prefix_len_ + nedges_;
+}
+
+void node::set_node_ptrs(unsigned char const* ptrs)
+{
+    std::memcpy(node_ptrs(), ptrs, nedges_ * sizeof(node*));
+}
+
+node* node::node_at(std::size_t i)
+{
+    assert(i < nedges_);
+
+    node* ptr;
+    std::memcpy(&ptr, node_ptrs() + i * sizeof(node*), sizeof(node*));
+    return ptr;
+}
+
+void node::set_node_at(std::size_t i, node const* ptr)
+{
+    assert(i < nedges_);
+    std::memcpy(node_ptrs() + i * sizeof(node*), &ptr, sizeof(node*));
+}
+
+node* make_node(std::uint32_t refs, std::uint32_t bytes, std::uint32_t edges)
+{
+    std::size_t size = sizeof(node) + bytes
+        + edges * (1 + sizeof(node*));
+
+    node* n = static_cast<node*>(std::malloc(size));
+    n->refcount_ = refs;
+    n->prefix_len_ = bytes;
+    n->nedges_ = edges;
+    return n;
+}
+
+void resize(node** n, std::uint32_t prefix_length, std::size_t nedges)
+{
+    std::size_t sz = sizeof(node) + prefix_length
+        + nedges * (1 + sizeof(node*));
+    (*n) = static_cast<node*>(std::realloc((*n), sz));
+    (*n)->prefix_len_ = prefix_length;
+    (*n)->nedges_ = nedges;
+}
+
+node* add_edge(node* n, const unsigned char* key, std::size_t size)
+{
+    // Make a new leaf node using the given key.
+    node* child = make_node(1, size, 0);
+    child->set_prefix(key);
+
+    node* nn = static_cast<node*>(std::realloc(n, n->size()
+                                               + 1 + sizeof(node*)));
+    auto* ptrs = nn->node_ptrs();
+    std::memmove(ptrs + 1, ptrs, nn->nedges_ * sizeof(node*));
+    nn->data_[nn->prefix_len_ + nn->nedges_] = key[0];
+    auto* last_node = nn->node_ptrs() + 1 + sizeof(node*) * nn->nedges_;
+    std::memcpy(last_node, &child, sizeof(child));
+    assert(!std::memcmp(last_node, &child, sizeof(child)));
+    ++nn->nedges_;
+    return nn;
+}
+
+node* split(node** n, const unsigned char* key, std::size_t size)
 {
     assert(key);
     assert(size > 0);
 
-    node* child = new node();
-    child->key_ = true;
-    child->size_ = size;
-    child->data_ = new unsigned char[size];
-    std::memcpy(child->data_, key, size);
+    // The new node has a prefix of `size` bytes. Since our edges will
+    // be moved to this node, we allocate the node using our edge
+    // count.
+    node* c = make_node((*n)->refcount_, size, (*n)->nedges_);
+    // Copy the key to the new node as its prefix.
+    c->set_prefix(key);
+    // Copy our first bytes to the new node.
+    c->set_first_bytes((*n)->first_bytes());
+    // Copy our outgoing edges to the new node.
+    c->set_node_ptrs((*n)->node_ptrs());
 
-    return child;
-}
+    *n = static_cast<node*>(std::realloc(*n, sizeof(node) + 1 + sizeof(node*)));
+    (*n)->prefix_len_ = 1;
+    (*n)->nedges_ = 1;
+    (*n)->data_[0] = key[0];
+    std::memcpy((*n)->data_ + 1, &c, sizeof(node*));
 
-node* node::add_edge(const unsigned char* key, std::size_t size)
-{
-    node* child = make_edge(key, size);
+    return *n;
+    // node* child = make_edge(key, size);
 
-    next_chars_.emplace_back(key[0]);
-    children_.emplace_back(child);
+    // child->key_ = is_key;
+    // std::swap(child->children_, children_);
+    // std::swap(child->next_chars_, next_chars_);
 
-    return child;
-}
+    // next_chars_.emplace_back(key[0]);
+    // children_.emplace_back(child);
 
-node* node::split(const unsigned char* key, std::size_t size, bool is_key)
-{
-    node* child = make_edge(key, size);
-
-    child->key_ = is_key;
-    std::swap(child->children_, children_);
-    std::swap(child->next_chars_, next_chars_);
-
-    next_chars_.emplace_back(key[0]);
-    children_.emplace_back(child);
-
-    return child;
+    // return child;
 }
 
 // ----------------------------------------------------------------------
@@ -74,84 +164,134 @@ bool radix_tree::insert(const unsigned char* key, std::size_t size)
 
     std::size_t i = 0; // Number of characters matched in key.
     std::size_t j = 0; // Number of characters matched in current node.
+    std::size_t edge_idx = 0; // Index of outgoing edge from the parent node.
     node* current_node = root_;
+    node* parent_node = current_node;
 
-    while ((current_node->size_ > 0 || current_node->children_.size() > 0)
+    while ((current_node->prefix_len_ > 0 || current_node->nedges_ > 0)
            && i < size) {
-        for (j = 0; j < current_node->size_; ++j) {
+        for (j = 0; j < current_node->prefix_len_; ++j) {
             if (current_node->data_[j] != key[i])
                 break;
             ++i;
         }
-        if (j != current_node->size_)
+        if (j != current_node->prefix_len_)
             break; // Couldn't match the whole string, might need to split.
 
         // Check if there's an outgoing edge from this node.
-        node* parent_node = current_node;
-        for (std::size_t k = 0; k < current_node->children_.size(); ++k) {
-            if (i < size && current_node->next_chars_[k] == key[i]) {
-                current_node = current_node->children_[k];
+        node* next_node = current_node;
+        for (std::size_t k = 0; k < current_node->nedges_; ++k) {
+            if (i < size && current_node->data_[current_node->prefix_len_ + k]
+                == key[i]) {
+                edge_idx = k;
+                next_node = current_node->node_at(k);
                 break;
             }
         }
-        if (current_node == parent_node)
+        if (next_node == current_node)
             break; // No outgoing edge.
-    }
-
-    if (i == 0) {
-        // No characters matched, create a new outgoing edge.
-        current_node->add_edge(key, size);
-        ++size_;
-        return true;
+        parent_node = current_node;
+        current_node = next_node;
     }
 
     if (i != size) {
-        // Some characters match, we might have to split the node.
-        if (j == current_node->size_) {
-            // No need to split since all characters in the current
-            // node match. Create an outgoing edge with the remaining
-            // characters in the key.
-            current_node->add_edge(key + i, size - i);
+        // Not all characters match, we might have to split the node.
+        if (i == 0 || j == current_node->prefix_len_) {
+            // TODO: Explain this.
+            node* n = add_edge(current_node, key + i, size - i);
             ++size_;
+            // Update the link from parent.
+            if (current_node == root_)
+                root_ = n;
+            else
+                parent_node->set_node_at(edge_idx, n);
             return true;
         }
 
         // There was a mismatch, so we need to split this node.
-        current_node->split(current_node->data_ + j,
-                            current_node->size_ - j,
-                            current_node->key_);
-        current_node->key_ = false;
-        current_node->size_ = j;
-        current_node->add_edge(key + i, size - i);
+        //
+        // Create two nodes that will be reachable from the parent.
+        // One node will have the rest of the characters from the key,
+        // and the other node will have the rest of the characters
+        // from the current node's prefix.
+        node* key_node = make_node(1, size - i, 0);
+        node* split_node = make_node(current_node->refcount_,
+                                     current_node->prefix_len_ - j,
+                                     current_node->nedges_);
+
+        // Copy the prefix chunks to the new nodes.
+        key_node->set_prefix(key + i);
+        split_node->set_prefix(current_node->prefix() + j);
+
+        // Copy the current node's edges to the new node.
+        split_node->set_first_bytes(current_node->first_bytes());
+        split_node->set_node_ptrs(current_node->node_ptrs());
+
+        // Resize the current node to accomodate a prefix of j bytes
+        // and 2 outgoing edges to the above nodes. Set the refcount
+        // to 0 since this node's prefix wasn't already inserted.
+        resize(&current_node, j, 2);
+        current_node->refcount_ = 0;
+
+        // Add links to the new nodes. We don't need to copy the
+        // prefix bytes since the above operation retains those in the
+        // resized node.
+        current_node->set_first_byte_at(0, key_node->prefix()[0]);
+        current_node->set_first_byte_at(1, split_node->prefix()[0]);
+        current_node->set_node_at(0, key_node);
+        current_node->set_node_at(1, split_node);
+
         ++size_;
+        parent_node->set_node_at(edge_idx, current_node);
         return true;
     }
 
-    // All characters match, but we still might need to split.
-    if (j != current_node->size_) {
-        // This key is a prefix of the current node.
-        current_node->split(current_node->data_ + j,
-                            current_node->size_ - j,
-                            current_node->key_);
-        current_node->size_ = j;
-        current_node->key_ = true;
+    // All characters in the key match, but we still might need to split.
+    if (j != current_node->prefix_len_) {
+        // Not all characters from the current node's prefix match,
+        // and there are no more characters from the key to match.
+
+        // Create a node that contains the rest of the characters from
+        // the current node's prefix, retaining the rest of the node's
+        // state.
+        node* split_node = make_node(current_node->refcount_,
+                                     current_node->prefix_len_ - j,
+                                     current_node->nedges_);
+        split_node->set_prefix(current_node->prefix() + j);
+        split_node->set_first_bytes(current_node->first_bytes());
+        split_node->set_node_ptrs(current_node->node_ptrs());
+
+        // Resize the current node to hold the key and one edge to the
+        // above node.
+        resize(&current_node, j, 1);
+
+        // Add an edge to the split node and set the refcount to 1
+        // since this key wasn't inserted earlier. We don't need to
+        // set the prefix because the first j bytes in the prefix are
+        // preserved by resizing.
+        current_node->set_first_byte_at(0, split_node->prefix()[0]);
+        current_node->set_node_at(0, split_node);
+        current_node->refcount_ = 1;
+
         ++size_;
+        parent_node->set_node_at(edge_idx, current_node);
         return true;
     }
 
     assert(i == size);
-    assert(j == current_node->size_);
+    assert(j == current_node->prefix_len_);
 
     // This node might not be marked as a key, even if all characters match.
-    if (!current_node->key_) {
-        current_node->key_ = true;
+    if (!current_node->refcount_) {
+        ++current_node->refcount_;
         ++size_;
         return true;
     }
 
+    ++current_node->refcount_;
     return false;
 }
-
+#if 0
 bool radix_tree::erase(const unsigned char* key, std::size_t size)
 {
     assert(key);
@@ -279,31 +419,33 @@ bool radix_tree::contains(const unsigned char* key, std::size_t size) const
 
     return i == size && j == current_node->size_ && current_node->key_;
 }
-
 std::size_t radix_tree::size() const
 {
     return size_;
 }
+#endif
 
-static void visit_child(node const* child_node, std::size_t level)
+static void visit_child(node* child_node, std::size_t level)
 {
     assert(level > 0);
 
     for (std::size_t i = 0; i < 4 * (level - 1) + level; ++i)
         std::putchar(' ');
     std::printf("`-> ");
-    for (std::size_t i = 0; i < child_node->size_; ++i)
+    for (std::size_t i = 0; i < child_node->prefix_len_; ++i)
         std::printf("%c", child_node->data_[i]);
-    if (child_node->key_)
+    if (child_node->refcount_)
         std::printf(" [*]");
     std::printf("\n");
-    for (std::size_t i = 0; i < child_node->children_.size(); ++i)
-        visit_child(child_node->children_[i], level + 1);
+    for (std::size_t i = 0; i < child_node->nedges_; ++i) {
+        visit_child(child_node->node_at(i), level + 1);
+    }
 }
 
-void radix_tree::print() const
+void radix_tree::print()
 {
     std::puts("[root]");
-    for (std::size_t i = 0; i < root_->children_.size(); ++i)
-        visit_child(root_->children_[i], 1);
+    for (std::size_t i = 0; i < root_->nedges_; ++i) {
+        visit_child(root_->node_at(i), 1);
+    }
 }
