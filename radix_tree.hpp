@@ -27,6 +27,7 @@ struct node
     void set_first_byte_at(std::size_t i, unsigned char byte);
     void set_node_ptrs(unsigned char const* ptrs);
     void set_node_at(std::size_t i, node const* ptr);
+    void set_edge_at(std::size_t i, unsigned char byte, node const* ptr);
 };
 
 node* make_node(std::uint32_t refcount,

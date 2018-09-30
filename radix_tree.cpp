@@ -73,6 +73,12 @@ void node::set_node_at(std::size_t i, node const* ptr)
     std::memcpy(node_ptrs() + i * sizeof(node*), &ptr, sizeof(node*));
 }
 
+void node::set_edge_at(std::size_t i, unsigned char byte, node const* ptr)
+{
+    set_first_byte_at(i, byte);
+    set_node_at(i, ptr);
+}
+
 node* make_node(std::uint32_t refs, std::uint32_t bytes, std::uint32_t edges)
 {
     std::size_t size = sizeof(node) + bytes
@@ -167,8 +173,8 @@ bool radix_tree::insert(const unsigned char* key, std::size_t size)
                          (current_node->nedges_ - 1) * sizeof(node*));
 
             // Add an edge to the new node.
-            current_node->set_first_byte_at(current_node->nedges_ - 1, key[i]);
-            current_node->set_node_at(current_node->nedges_ - 1, key_node);
+            current_node->set_edge_at(current_node->nedges_ - 1,
+                                      key[i], key_node);
 
             // We could be at the root node, since it holds zero
             // characters in its prefix.
@@ -208,10 +214,8 @@ bool radix_tree::insert(const unsigned char* key, std::size_t size)
         // Add links to the new nodes. We don't need to copy the
         // prefix bytes since the above operation retains those in the
         // resized node.
-        current_node->set_first_byte_at(0, key_node->prefix()[0]);
-        current_node->set_first_byte_at(1, split_node->prefix()[0]);
-        current_node->set_node_at(0, key_node);
-        current_node->set_node_at(1, split_node);
+        current_node->set_edge_at(0, key_node->prefix()[0], key_node);
+        current_node->set_edge_at(1, split_node->prefix()[0], split_node);
 
         ++size_;
         parent_node->set_node_at(edge_idx, current_node);
@@ -241,8 +245,7 @@ bool radix_tree::insert(const unsigned char* key, std::size_t size)
         // since this key wasn't inserted earlier. We don't need to
         // set the prefix because the first j bytes in the prefix are
         // preserved by resize().
-        current_node->set_first_byte_at(0, split_node->prefix()[0]);
-        current_node->set_node_at(0, split_node);
+        current_node->set_edge_at(0, split_node->prefix()[0], split_node);
         current_node->refcount_ = 1;
 
         ++size_;
