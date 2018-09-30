@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <cstdlib>
+#include <ctime>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -173,6 +174,7 @@ static bool fuzz_test(std::size_t operations = 100000)
 
 int main()
 {
+    std::srand(std::time(0));
     smoke_test();
     insert_test1();
     insert_test2();
