@@ -94,59 +94,6 @@ void resize(node** n, std::uint32_t prefix_length, std::size_t nedges)
     (*n)->nedges_ = nedges;
 }
 
-node* add_edge(node* n, const unsigned char* key, std::size_t size)
-{
-    // Make a new leaf node using the given key.
-    node* child = make_node(1, size, 0);
-    child->set_prefix(key);
-
-    node* nn = static_cast<node*>(std::realloc(n, n->size()
-                                               + 1 + sizeof(node*)));
-    auto* ptrs = nn->node_ptrs();
-    std::memmove(ptrs + 1, ptrs, nn->nedges_ * sizeof(node*));
-    nn->data_[nn->prefix_len_ + nn->nedges_] = key[0];
-    auto* last_node = nn->node_ptrs() + 1 + sizeof(node*) * nn->nedges_;
-    std::memcpy(last_node, &child, sizeof(child));
-    assert(!std::memcmp(last_node, &child, sizeof(child)));
-    ++nn->nedges_;
-    return nn;
-}
-
-node* split(node** n, const unsigned char* key, std::size_t size)
-{
-    assert(key);
-    assert(size > 0);
-
-    // The new node has a prefix of `size` bytes. Since our edges will
-    // be moved to this node, we allocate the node using our edge
-    // count.
-    node* c = make_node((*n)->refcount_, size, (*n)->nedges_);
-    // Copy the key to the new node as its prefix.
-    c->set_prefix(key);
-    // Copy our first bytes to the new node.
-    c->set_first_bytes((*n)->first_bytes());
-    // Copy our outgoing edges to the new node.
-    c->set_node_ptrs((*n)->node_ptrs());
-
-    *n = static_cast<node*>(std::realloc(*n, sizeof(node) + 1 + sizeof(node*)));
-    (*n)->prefix_len_ = 1;
-    (*n)->nedges_ = 1;
-    (*n)->data_[0] = key[0];
-    std::memcpy((*n)->data_ + 1, &c, sizeof(node*));
-
-    return *n;
-    // node* child = make_edge(key, size);
-
-    // child->key_ = is_key;
-    // std::swap(child->children_, children_);
-    // std::swap(child->next_chars_, next_chars_);
-
-    // next_chars_.emplace_back(key[0]);
-    // children_.emplace_back(child);
-
-    // return child;
-}
-
 // ----------------------------------------------------------------------
 
 radix_tree::radix_tree()

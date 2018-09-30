@@ -33,8 +33,6 @@ node* make_node(std::uint32_t refcount,
                 std::uint32_t prefix_length,
                 std::uint32_t nedges);
 void resize(node** n, std::uint32_t prefix_length, std::size_t nedges);
-node* add_edge(node* n, const unsigned char* key, std::size_t size);
-node* split(node* n, const unsigned char* key, std::size_t size);
 
 class radix_tree
 {
