@@ -33,7 +33,7 @@ struct node
 node* make_node(std::uint32_t refcount,
                 std::uint32_t prefix_length,
                 std::uint32_t nedges);
-void resize(node** n, std::uint32_t prefix_length, std::size_t nedges);
+node* resize(node* n, std::uint32_t prefix_length, std::size_t nedges);
 
 class radix_tree
 {

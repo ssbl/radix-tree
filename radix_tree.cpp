@@ -91,13 +91,15 @@ node* make_node(std::uint32_t refs, std::uint32_t bytes, std::uint32_t edges)
     return n;
 }
 
-void resize(node** n, std::uint32_t prefix_length, std::size_t nedges)
+node* resize(node* n, std::uint32_t prefix_length, std::size_t nedges)
 {
     std::size_t sz = sizeof(node) + prefix_length
         + nedges * (1 + sizeof(node*));
-    (*n) = static_cast<node*>(std::realloc((*n), sz));
-    (*n)->prefix_len_ = prefix_length;
-    (*n)->nedges_ = nedges;
+    node* new_node = static_cast<node*>(std::realloc(n, sz));
+    assert(new_node);
+    new_node->prefix_len_ = prefix_length;
+    new_node->nedges_ = nedges;
+    return new_node;
 }
 
 // ----------------------------------------------------------------------
@@ -157,9 +159,9 @@ bool radix_tree::insert(const unsigned char* key, std::size_t size)
             key_node->set_prefix(key + i);
 
             // Reallocate for one more edge.
-            resize(&current_node,
-                   current_node->prefix_len_,
-                   current_node->nedges_ + 1);
+            node* n = resize(current_node,
+                             current_node->prefix_len_,
+                             current_node->nedges_ + 1);
 
             // Make room for the new edge. We need to shift the chunk
             // of node pointers one byte to the right. Since resize()
@@ -168,20 +170,20 @@ bool radix_tree::insert(const unsigned char* key, std::size_t size)
             // at one byte to the left of this destination.
             //
             // Since the regions can overlap, we use memmove.
-            std::memmove(current_node->node_ptrs(),
-                         current_node->node_ptrs() - 1,
-                         (current_node->nedges_ - 1) * sizeof(node*));
+            std::memmove(n->node_ptrs(),
+                         n->node_ptrs() - 1,
+                         (n->nedges_ - 1) * sizeof(node*));
 
             // Add an edge to the new node.
-            current_node->set_edge_at(current_node->nedges_ - 1,
-                                      key[i], key_node);
+            n->set_edge_at(n->nedges_ - 1,
+                           key[i], key_node);
 
             // We could be at the root node, since it holds zero
             // characters in its prefix.
-            if (current_node->prefix_len_ == 0)
-                root_ = current_node;
+            if (n->prefix_len_ == 0)
+                root_ = n;
             else
-                parent_node->set_node_at(edge_idx, current_node);
+                parent_node->set_node_at(edge_idx, n);
             ++size_;
             return true;
         }
@@ -208,17 +210,17 @@ bool radix_tree::insert(const unsigned char* key, std::size_t size)
         // Resize the current node to accomodate a prefix of j bytes
         // and 2 outgoing edges to the above nodes. Set the refcount
         // to 0 since this node's prefix wasn't already inserted.
-        resize(&current_node, j, 2);
-        current_node->refcount_ = 0;
+        node* n = resize(current_node, j, 2);
+        n->refcount_ = 0;
 
         // Add links to the new nodes. We don't need to copy the
         // prefix bytes since the above operation retains those in the
         // resized node.
-        current_node->set_edge_at(0, key_node->prefix()[0], key_node);
-        current_node->set_edge_at(1, split_node->prefix()[0], split_node);
+        n->set_edge_at(0, key_node->prefix()[0], key_node);
+        n->set_edge_at(1, split_node->prefix()[0], split_node);
 
         ++size_;
-        parent_node->set_node_at(edge_idx, current_node);
+        parent_node->set_node_at(edge_idx, n);
         return true;
     }
 
@@ -239,17 +241,17 @@ bool radix_tree::insert(const unsigned char* key, std::size_t size)
 
         // Resize the current node to hold the matched characters from
         // its prefix and one edge to the new node.
-        resize(&current_node, j, 1);
+        node* n = resize(current_node, j, 1);
 
         // Add an edge to the split node and set the refcount to 1
         // since this key wasn't inserted earlier. We don't need to
         // set the prefix because the first j bytes in the prefix are
         // preserved by resize().
-        current_node->set_edge_at(0, split_node->prefix()[0], split_node);
-        current_node->refcount_ = 1;
+        n->set_edge_at(0, split_node->prefix()[0], split_node);
+        n->refcount_ = 1;
 
         ++size_;
-        parent_node->set_node_at(edge_idx, current_node);
+        parent_node->set_node_at(edge_idx, n);
         return true;
     }
 
