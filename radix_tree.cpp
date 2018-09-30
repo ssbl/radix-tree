@@ -273,7 +273,7 @@ bool radix_tree::insert(const unsigned char* key, std::size_t size)
     ++current_node->refcount_;
     return current_node->refcount_ == 1;
 }
-#if 0
+
 bool radix_tree::erase(const unsigned char* key, std::size_t size)
 {
     assert(key);
@@ -282,75 +282,110 @@ bool radix_tree::erase(const unsigned char* key, std::size_t size)
     std::size_t i = 0; // Number of characters matched in key.
     std::size_t j = 0; // Number of characters matched in current node.
     std::size_t edge_idx = 0; // Index of outgoing edge from the parent node.
+    std::size_t gp_edge_idx = 0; // Index of outgoing edge from grandparent.
     node* current_node = root_;
     node* parent_node = current_node;
+    node* grandparent_node = current_node;
 
-    while ((current_node->size_ > 0 || current_node->children_.size() > 0)
+    while ((current_node->prefix_len_ > 0 || current_node->nedges_ > 0)
            && i < size) {
-        for (j = 0; j < current_node->size_; ++j) {
+        for (j = 0; j < current_node->prefix_len_; ++j) {
             if (current_node->data_[j] != key[i])
                 break;
             ++i;
         }
-        if (j != current_node->size_)
+        if (j != current_node->prefix_len_)
             break;
 
         // Check if there's an outgoing edge from this node.
         node* next_node = current_node;
-        for (std::size_t k = 0; k < current_node->children_.size(); ++k) {
-            if (i < size && current_node->next_chars_[k] == key[i]) {
+        for (std::size_t k = 0; k < current_node->nedges_; ++k) {
+            if (i < size && current_node->first_byte_at(k) == key[i]) {
+                gp_edge_idx = edge_idx;
                 edge_idx = k;
-                next_node = current_node->children_[k];
+                next_node = current_node->node_at(k);
                 break;
             }
         }
         if (next_node == current_node)
             break; // No outgoing edge.
+        grandparent_node = parent_node;
         parent_node = current_node;
         current_node = next_node;
     }
 
-    if (i != size || j != current_node->size_ || !current_node->key_)
+    if (i != size || j != current_node->prefix_len_
+        || !current_node->refcount_)
         return false;
 
     assert(parent_node != current_node);
 
-    std::size_t outgoing_edges = current_node->children_.size();
-    if (outgoing_edges > 1) {
-        current_node->key_ = false;
-        --size_;
+    --current_node->refcount_;
+    --size_;
+    if (current_node->refcount_) {
+        puts("1");
         return true;
     }
+
+    std::size_t outgoing_edges = current_node->nedges_;
+    if (outgoing_edges > 1)
+        return true;
 
     if (outgoing_edges == 1) {
         // Merge this node with the single child node.
-        node* child = current_node->children_.front();
-        std::size_t merged_len = current_node->size_ + child->size_;
-        auto* merged_data = new unsigned char[merged_len];
-        std::memcpy(merged_data, current_node->data_, current_node->size_);
-        std::memcpy(merged_data + current_node->size_, child->data_,
-                    child->size_);
-        child->data_ = merged_data;
-        child->size_ = merged_len;
-        parent_node->children_[edge_idx] = child;
-        --size_;
+        node* child = current_node->node_at(0);
+
+        // Make room for the child node's prefix and edges. We need to
+        // keep the old prefix length since resize() will overwrite
+        // it.
+        uint32_t old_prefix_len = current_node->prefix_len_;
+        node* n = resize(current_node,
+                         current_node->prefix_len_ + child->prefix_len_,
+                         child->nedges_);
+
+        // Append the child node's prefix to the current node.
+        std::memcpy(n->prefix() + old_prefix_len,
+                    child->prefix(),
+                    child->prefix_len_);
+
+        // Copy the rest of child node's data to the current node.
+        n->set_first_bytes(child->first_bytes());
+        n->set_node_ptrs(child->node_ptrs());
+        n->refcount_ = child->refcount_;
+
+        std::free(child);
+        parent_node->set_node_at(edge_idx, n);
         return true;
     }
 
-    if (parent_node->children_.size() == 2 && !parent_node->key_) {
-        // We can merge the parent node with its other child node.
-        node* other_child = parent_node->children_[!edge_idx];
-        std::size_t merged_len = parent_node->size_ + other_child->size_;
-        auto* merged_data = new unsigned char[merged_len];
-        std::memcpy(merged_data, parent_node->data_, parent_node->size_);
-        std::memcpy(merged_data + parent_node->size_, other_child->data_,
-                    other_child->size_);
-        parent_node->data_ = merged_data;
-        parent_node->size_ = merged_len;
-        std::swap(parent_node->key_, other_child->key_);
-        std::swap(parent_node->children_, other_child->children_);
-        std::swap(parent_node->next_chars_, other_child->next_chars_);
-        --size_;
+    if (parent_node->nedges_ == 2 && !parent_node->refcount_
+        && parent_node != root_) {
+        // The current node is a leaf node, and its parent is not a
+        // key. We can merge the parent node with its other child node.
+        assert(edge_idx < 2);
+        node* other_child = parent_node->node_at(!edge_idx);
+
+        // Make room for the child node's prefix and edges. We need to
+        // keep the old prefix length since resize() will overwrite
+        // it.
+        uint32_t old_prefix_len = parent_node->prefix_len_;
+        node* n = resize(parent_node,
+                         parent_node->prefix_len_ + other_child->prefix_len_,
+                         other_child->nedges_);
+
+        // Append the child node's prefix to the current node.
+        std::memcpy(n->prefix() + old_prefix_len,
+                    other_child->prefix(),
+                    other_child->prefix_len_);
+
+        // Copy the rest of child node's data to the current node.
+        n->set_first_bytes(other_child->first_bytes());
+        n->set_node_ptrs(other_child->node_ptrs());
+        n->refcount_ = other_child->refcount_;
+
+        std::free(current_node);
+        std::free(other_child);
+        grandparent_node->set_node_at(gp_edge_idx, n);
         return true;
     }
 
@@ -359,15 +394,36 @@ bool radix_tree::erase(const unsigned char* key, std::size_t size)
     // parent.
     assert(outgoing_edges == 0);
 
-    std::swap(parent_node->children_[edge_idx], parent_node->children_.back());
-    std::swap(parent_node->next_chars_[edge_idx],
-              parent_node->next_chars_.back());
-    parent_node->children_.pop_back();
-    parent_node->next_chars_.pop_back();
-    --size_;
+    // Move the first byte and node pointer to the back of the byte
+    // and pointer chunks respectively.
+    std::size_t last_idx = parent_node->nedges_ - 1;
+    unsigned char last_byte = parent_node->first_byte_at(last_idx);
+    node* last_ptr = parent_node->node_at(last_idx);
+    parent_node->set_edge_at(edge_idx, last_byte, last_ptr);
+
+    // Move the chunk of pointers one byte to the left, effectively
+    // deleting the last byte in the region of first bytes by
+    // overwriting it.
+    std::memmove(parent_node->node_ptrs() - 1,
+                 parent_node->node_ptrs(),
+                 parent_node->nedges_ * sizeof(node*));
+
+    // Shrink the parent node to the new size, which "deletes" the
+    // last pointer in the chunk of node pointers.
+    node* n = resize(parent_node,
+                     parent_node->prefix_len_,
+                     parent_node->nedges_ - 1);
+
+    // Nothing points to this node now, so we can reclaim it.
+    std::free(current_node);
+
+    if (n->prefix_len_ == 0)
+        root_ = n;
+    else
+        grandparent_node->set_node_at(gp_edge_idx, n);
     return true;
 }
-
+#if 0
 bool radix_tree::contains(const unsigned char* key, std::size_t size) const
 {
     assert(key);
@@ -401,11 +457,11 @@ bool radix_tree::contains(const unsigned char* key, std::size_t size) const
 
     return i == size && j == current_node->size_ && current_node->key_;
 }
+#endif
 std::size_t radix_tree::size() const
 {
     return size_;
 }
-#endif
 
 static void visit_child(node* child_node, std::size_t level)
 {
