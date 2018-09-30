@@ -85,6 +85,7 @@ node* make_node(std::uint32_t refs, std::uint32_t bytes, std::uint32_t edges)
         + edges * (1 + sizeof(node*));
 
     node* n = static_cast<node*>(std::malloc(size));
+    assert(n);
     n->refcount_ = refs;
     n->prefix_len_ = bytes;
     n->nedges_ = edges;
@@ -105,7 +106,7 @@ node* resize(node* n, std::uint32_t prefix_length, std::size_t nedges)
 // ----------------------------------------------------------------------
 
 radix_tree::radix_tree()
-    : root_(new node())
+    : root_(make_node(0, 0, 0))
     , size_(0)
 {}
 
