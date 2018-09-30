@@ -4,7 +4,7 @@
 #include <cstdlib>
 #include <ctime>
 #include <string>
-#include <unordered_set>
+#include <unordered_map>
 #include <vector>
 
 constexpr bool show_trees = true;
@@ -35,7 +35,7 @@ static void smoke_test()
 
     assert(tree_insert(tree, key));
     // assert(tree_contains(tree, key));
-    // assert(tree_erase(tree, key));
+    assert(tree_erase(tree, key));
     // assert(!tree_contains(tree, key));
 }
 
@@ -139,10 +139,10 @@ static std::string random_key(std::size_t key_length)
     return key;
 }
 
-static bool fuzz_test(std::size_t operations = 100000)
+static bool fuzz_test(std::size_t operations = 10)
 {
     radix_tree tree;
-    std::unordered_set<std::string> set;
+    std::unordered_map<std::string, std::size_t> set;
     std::size_t key_length = 50;
 
     for (std::size_t i = 0; i < operations; ++i) {
@@ -153,21 +153,31 @@ static bool fuzz_test(std::size_t operations = 100000)
         if (std::rand() % 2) {
             // std::printf("insert: %s\n", key.c_str());
             bool tree_result = tree_insert(tree, key);
-            bool set_result = set.insert(key).second;
+            bool set_result = ++set[key] == 1;
             if (tree_result != set_result) {
                 return false;
             }
         } else {
-            // std::printf("erase: %s\n", key.c_str());
-            bool tree_result = tree_erase(tree, key);
-            bool set_result = set.erase(key) == 1;
-            if (tree_result != set_result) {
-                return false;
+            auto idx = static_cast<std::size_t>(std::rand() % set.size());
+            for (auto const& item : set) {
+                if (!idx) {
+                    key = item.first;
+                    break;
+                }
+                --idx;
             }
+            // std::printf("erase: %s\n", key.c_str());
+            bool set_result = set[key] > 0 && --set[key] >= 0;
+            bool tree_result = tree_erase(tree, key);
+            if (tree_result != set_result)
+                return false;
         }
     }
 
-    assert(set.size() == tree.size());
+    std::size_t set_size = 0;
+    for (auto const& item : set)
+        set_size += item.second;
+    assert(set_size == tree.size());
 
     return true;
 }
@@ -179,8 +189,8 @@ int main()
     insert_test1();
     insert_test2();
     insert_test3();
-    // erase_test1();
-    // erase_test2();
-    // for (int i = 0; i < 10; ++i)
-    //     assert(fuzz_test());
+    erase_test1();
+    erase_test2();
+    for (int i = 0; i < 100; ++i)
+        assert(fuzz_test(100000));
 }
