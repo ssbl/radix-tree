@@ -110,8 +110,17 @@ radix_tree::radix_tree()
     , size_(0)
 {}
 
+static void free_nodes(node* n)
+{
+    for (std::size_t i = 0; i < n->nedges_; ++i)
+        free_nodes(n->node_at(i));
+    std::free(n);
+}
+
 radix_tree::~radix_tree()
-{}
+{
+    free_nodes(root_);
+}
 
 bool radix_tree::insert(const unsigned char* key, std::size_t size)
 {
