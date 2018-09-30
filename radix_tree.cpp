@@ -259,14 +259,9 @@ bool radix_tree::insert(const unsigned char* key, std::size_t size)
     assert(j == current_node->prefix_len_);
 
     // This node might not be marked as a key, even if all characters match.
-    if (!current_node->refcount_) {
-        ++current_node->refcount_;
-        ++size_;
-        return true;
-    }
-
+    ++size_;
     ++current_node->refcount_;
-    return false;
+    return current_node->refcount_ == 1;
 }
 #if 0
 bool radix_tree::erase(const unsigned char* key, std::size_t size)
