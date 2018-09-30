@@ -197,14 +197,39 @@ bool radix_tree::insert(const unsigned char* key, std::size_t size)
     if (i != size) {
         // Not all characters match, we might have to split the node.
         if (i == 0 || j == current_node->prefix_len_) {
-            // TODO: Explain this.
-            node* n = add_edge(current_node, key + i, size - i);
-            ++size_;
-            // Update the link from parent.
-            if (current_node == root_)
-                root_ = n;
+            // The mismatch is at one of the outgoing edges, so we
+            // create an edge from the current node to a new leaf node
+            // that has the rest of the key as the prefix.
+            node* key_node = make_node(1, size - i, 0);
+            key_node->set_prefix(key + i);
+
+            // Reallocate for one more edge.
+            resize(&current_node,
+                   current_node->prefix_len_,
+                   current_node->nedges_ + 1);
+
+            // Make room for the new edge. We need to shift the chunk
+            // of node pointers one byte to the right. Since resize()
+            // sets nedges_ to nedges_ + 1, node_ptrs() tells us the
+            // destination address. The chunk of node pointers starts
+            // at one byte to the left of this destination.
+            //
+            // Since the regions can overlap, we use memmove.
+            std::memmove(current_node->node_ptrs(),
+                         current_node->node_ptrs() - 1,
+                         (current_node->nedges_ - 1) * sizeof(node*));
+
+            // Add an edge to the new node.
+            current_node->set_first_byte_at(current_node->nedges_ - 1, key[i]);
+            current_node->set_node_at(current_node->nedges_ - 1, key_node);
+
+            // We could be at the root node, since it holds zero
+            // characters in its prefix.
+            if (current_node->prefix_len_ == 0)
+                root_ = current_node;
             else
-                parent_node->set_node_at(edge_idx, n);
+                parent_node->set_node_at(edge_idx, current_node);
+            ++size_;
             return true;
         }
 
@@ -252,8 +277,8 @@ bool radix_tree::insert(const unsigned char* key, std::size_t size)
         // and there are no more characters from the key to match.
 
         // Create a node that contains the rest of the characters from
-        // the current node's prefix, retaining the rest of the node's
-        // state.
+        // the current node's prefix and the outgoing edges from the
+        // current node.
         node* split_node = make_node(current_node->refcount_,
                                      current_node->prefix_len_ - j,
                                      current_node->nedges_);
@@ -261,14 +286,14 @@ bool radix_tree::insert(const unsigned char* key, std::size_t size)
         split_node->set_first_bytes(current_node->first_bytes());
         split_node->set_node_ptrs(current_node->node_ptrs());
 
-        // Resize the current node to hold the key and one edge to the
-        // above node.
+        // Resize the current node to hold the matched characters from
+        // its prefix and one edge to the new node.
         resize(&current_node, j, 1);
 
         // Add an edge to the split node and set the refcount to 1
         // since this key wasn't inserted earlier. We don't need to
         // set the prefix because the first j bytes in the prefix are
-        // preserved by resizing.
+        // preserved by resize().
         current_node->set_first_byte_at(0, split_node->prefix()[0]);
         current_node->set_node_at(0, split_node);
         current_node->refcount_ = 1;
