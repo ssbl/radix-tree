@@ -21,11 +21,11 @@ static bool tree_erase(radix_tree& tree, std::string& key)
     return tree.erase(data, key.size());
 }
 
-static bool tree_contains(radix_tree const& tree, std::string& key)
-{
-    auto* data = reinterpret_cast<const unsigned char*>(key.data());
-    return tree.contains(data, key.size());
-}
+// static bool tree_contains(radix_tree const& tree, std::string& key)
+// {
+//     auto* data = reinterpret_cast<const unsigned char*>(key.data());
+//     return tree.contains(data, key.size());
+// }
 
 static void smoke_test()
 {
@@ -158,7 +158,7 @@ static bool fuzz_test(std::size_t operations = 10)
                 return false;
             }
         } else {
-            auto idx = static_cast<std::size_t>(std::rand() % set.size());
+            auto idx = static_cast<std::size_t>(std::rand()) % set.size();
             for (auto const& item : set) {
                 if (!idx) {
                     key = item.first;
@@ -167,7 +167,7 @@ static bool fuzz_test(std::size_t operations = 10)
                 --idx;
             }
             // std::printf("erase: %s\n", key.c_str());
-            bool set_result = set[key] > 0 && --set[key] >= 0;
+            bool set_result = set[key] > 0 && set[key]--;
             bool tree_result = tree_erase(tree, key);
             if (tree_result != set_result)
                 return false;
@@ -184,7 +184,7 @@ static bool fuzz_test(std::size_t operations = 10)
 
 int main()
 {
-    std::srand(std::time(0));
+    std::srand(static_cast<unsigned>(std::time(nullptr)));
     smoke_test();
     insert_test1();
     insert_test2();
