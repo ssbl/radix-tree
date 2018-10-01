@@ -412,8 +412,8 @@ bool radix_tree::erase(const unsigned char* key, std::size_t size)
         // it.
         uint32_t old_prefix_length = parent_node.prefix_length();
         node n = resize(parent_node,
-                         old_prefix_length + other_child.prefix_length(),
-                         other_child.edgecount());
+                        old_prefix_length + other_child.prefix_length(),
+                        other_child.edgecount());
 
         // Append the child node's prefix to the current node.
         std::memcpy(n.prefix() + old_prefix_length,
