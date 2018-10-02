@@ -460,7 +460,7 @@ bool radix_tree::erase(const unsigned char* key, std::size_t size)
         grandparent_node.set_node_at(gp_edge_idx, parent_node);
     return true;
 }
-#if 0
+
 bool radix_tree::contains(const unsigned char* key, std::size_t size) const
 {
     assert(key);
@@ -468,23 +468,23 @@ bool radix_tree::contains(const unsigned char* key, std::size_t size) const
 
     std::size_t i = 0; // Number of characters matched in key.
     std::size_t j = 0; // Number of characters matched in current node.
-    node* current_node = root_;
+    node current_node = root_;
 
-    while ((current_node->size_ > 0 || current_node->children_.size() > 0)
+    while ((current_node.prefix_length() > 0 || current_node.edgecount() > 0)
            && i < size) {
-        for (j = 0; j < current_node->size_; ++j) {
-            if (current_node->data_[j] != key[i])
+        for (j = 0; j < current_node.prefix_length(); ++j) {
+            if (current_node.prefix()[j] != key[i])
                 break;
             ++i;
         }
-        if (j != current_node->size_)
+        if (j != current_node.prefix_length())
             break;
 
         // Check if there's an outgoing edge from this node.
-        node* parent_node = current_node;
-        for (std::size_t k = 0; k < current_node->children_.size(); ++k) {
-            if (i < size && current_node->next_chars_[k] == key[i]) {
-                current_node = current_node->children_[k];
+        node parent_node = current_node;
+        for (std::size_t k = 0; k < current_node.edgecount(); ++k) {
+            if (i < size && current_node.first_byte_at(k) == key[i]) {
+                current_node = current_node.node_at(k);
                 break;
             }
         }
@@ -492,9 +492,11 @@ bool radix_tree::contains(const unsigned char* key, std::size_t size) const
             break; // No outgoing edge.
     }
 
-    return i == size && j == current_node->size_ && current_node->key_;
+    return i == size
+        && j == current_node.prefix_length()
+        && current_node.refcount();
 }
-#endif
+
 std::size_t radix_tree::size() const
 {
     return size_;
