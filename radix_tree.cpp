@@ -364,10 +364,8 @@ bool radix_tree::erase(const unsigned char* key, std::size_t size)
 
     current_node.set_refcount(current_node.refcount() - 1);
     --size_;
-    if (current_node.refcount()) {
-        puts("1");
+    if (current_node.refcount())
         return true;
-    }
 
     std::size_t outgoing_edges = current_node.edgecount();
     if (outgoing_edges > 1)
