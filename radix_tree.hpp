@@ -32,12 +32,12 @@ struct node
     void set_node_ptrs(unsigned char const* ptrs);
     void set_node_at(std::size_t i, node const& n);
     void set_edge_at(std::size_t i, unsigned char byte, node const& n);
+    void resize(std::size_t prefix_length, std::size_t edgecount);
 };
 
 node make_node(std::size_t refcount,
                std::size_t prefix_length,
                std::size_t nedges);
-node resize(node n, std::size_t prefix_length, std::size_t nedges);
 
 class radix_tree
 {
