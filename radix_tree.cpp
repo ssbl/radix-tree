@@ -68,13 +68,13 @@ void node::set_first_bytes(unsigned char const* bytes)
 unsigned char node::first_byte_at(std::size_t i)
 {
     assert(i < edgecount());
-    return *(first_bytes() + i);
+    return first_bytes()[i];
 }
 
 void node::set_first_byte_at(std::size_t i, unsigned char byte)
 {
     assert(i < edgecount());
-    *(first_bytes() + i) = byte;
+    first_bytes()[i] = byte;
 }
 
 unsigned char* node::node_ptrs()
@@ -378,7 +378,7 @@ bool radix_tree::erase(const unsigned char* key, std::size_t size)
         // Make room for the child node's prefix and edges. We need to
         // keep the old prefix length since resize() will overwrite
         // it.
-        uint32_t old_prefix_length = current_node.prefix_length();
+        std::uint32_t old_prefix_length = current_node.prefix_length();
         current_node.resize(old_prefix_length + child.prefix_length(),
                             child.edgecount());
 
@@ -407,7 +407,7 @@ bool radix_tree::erase(const unsigned char* key, std::size_t size)
         // Make room for the child node's prefix and edges. We need to
         // keep the old prefix length since resize() will overwrite
         // it.
-        uint32_t old_prefix_length = parent_node.prefix_length();
+        std::uint32_t old_prefix_length = parent_node.prefix_length();
         parent_node.resize(old_prefix_length + other_child.prefix_length(),
                            other_child.edgecount());
 
