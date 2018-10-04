@@ -345,14 +345,14 @@ bool radix_tree::erase(const unsigned char* key, std::size_t size)
     node grandparent_node = result.grandparent_node;
 
     if (i != size || j != current_node.prefix_length()
-        || !current_node.refcount())
+        || current_node.refcount() == 0)
         return false;
 
     assert(parent_node != current_node);
 
     current_node.set_refcount(current_node.refcount() - 1);
     --size_;
-    if (current_node.refcount())
+    if (current_node.refcount() > 0)
         return true;
 
     std::size_t outgoing_edges = current_node.edgecount();
@@ -385,7 +385,7 @@ bool radix_tree::erase(const unsigned char* key, std::size_t size)
         return true;
     }
 
-    if (parent_node.edgecount() == 2 && !parent_node.refcount()
+    if (parent_node.edgecount() == 2 && parent_node.refcount() == 0
         && parent_node != root_) {
         // The current node is a leaf node, and its parent is not a
         // key. We can merge the parent node with its other child node.
@@ -472,18 +472,16 @@ static void visit_child(node child_node, std::size_t level)
     std::printf("`-> ");
     for (std::uint32_t i = 0; i < child_node.prefix_length(); ++i)
         std::printf("%c", child_node.prefix()[i]);
-    if (child_node.refcount())
+    if (child_node.refcount() > 0)
         std::printf(" [*]");
     std::printf("\n");
-    for (std::uint32_t i = 0; i < child_node.edgecount(); ++i) {
+    for (std::uint32_t i = 0; i < child_node.edgecount(); ++i)
         visit_child(child_node.node_at(i), level + 1);
-    }
 }
 
 void radix_tree::print()
 {
     std::puts("[root]");
-    for (std::uint32_t i = 0; i < root_.edgecount(); ++i) {
+    for (std::uint32_t i = 0; i < root_.edgecount(); ++i)
         visit_child(root_.node_at(i), 1);
-    }
 }
