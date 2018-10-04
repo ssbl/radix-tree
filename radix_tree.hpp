@@ -12,8 +12,8 @@ struct node
 
     explicit node(unsigned char* data);
 
-    bool operator==(node const& other) const;
-    bool operator!=(node const& other) const;
+    bool operator==(node other) const;
+    bool operator!=(node other) const;
 
     std::uint32_t refcount();
     std::uint32_t prefix_length();
@@ -30,8 +30,8 @@ struct node
     void set_first_bytes(unsigned char const* bytes);
     void set_first_byte_at(std::size_t i, unsigned char byte);
     void set_node_ptrs(unsigned char const* ptrs);
-    void set_node_at(std::size_t i, node const& n);
-    void set_edge_at(std::size_t i, unsigned char byte, node const& n);
+    void set_node_at(std::size_t i, node n);
+    void set_edge_at(std::size_t i, unsigned char byte, node n);
     void resize(std::size_t prefix_length, std::size_t edgecount);
 };
 

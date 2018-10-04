@@ -96,7 +96,7 @@ node node::node_at(std::size_t i)
     return node(data);
 }
 
-void node::set_node_at(std::size_t i, node const& n)
+void node::set_node_at(std::size_t i, node n)
 {
     assert(i < edgecount());
     std::memcpy(node_ptrs() + i * sizeof(void*),
@@ -104,18 +104,18 @@ void node::set_node_at(std::size_t i, node const& n)
                 sizeof(n.data_));
 }
 
-void node::set_edge_at(std::size_t i, unsigned char byte, node const& n)
+void node::set_edge_at(std::size_t i, unsigned char byte, node n)
 {
     set_first_byte_at(i, byte);
     set_node_at(i, n);
 }
 
-bool node::operator==(node const& other) const
+bool node::operator==(node other) const
 {
     return data_ == other.data_;
 }
 
-bool node::operator!=(node const& other) const
+bool node::operator!=(node other) const
 {
     return !(*this == other);
 }
