@@ -165,7 +165,7 @@ radix_tree::~radix_tree()
     free_nodes(root_);
 }
 
-bool radix_tree::insert(const unsigned char* key, std::size_t size)
+match_result radix_tree::match(const unsigned char* key, std::size_t size) const
 {
     assert(key);
     assert(size > 0);
@@ -173,8 +173,10 @@ bool radix_tree::insert(const unsigned char* key, std::size_t size)
     std::size_t i = 0; // Number of characters matched in key.
     std::size_t j = 0; // Number of characters matched in current node.
     std::size_t edge_idx = 0; // Index of outgoing edge from the parent node.
+    std::size_t gp_edge_idx = 0; // Index of outgoing edge from grandparent.
     node current_node = root_;
-    node parent_node = root_;
+    node parent_node = current_node;
+    node grandparent_node = current_node;
 
     while ((current_node.prefix_length() > 0 || current_node.edgecount() > 0)
            && i < size) {
@@ -184,12 +186,13 @@ bool radix_tree::insert(const unsigned char* key, std::size_t size)
             ++i;
         }
         if (j != current_node.prefix_length())
-            break; // Couldn't match the whole string, might need to split.
+            break;
 
         // Check if there's an outgoing edge from this node.
         node next_node = current_node;
         for (std::size_t k = 0; k < current_node.edgecount(); ++k) {
             if (i < size && current_node.first_byte_at(k) == key[i]) {
+                gp_edge_idx = edge_idx;
                 edge_idx = k;
                 next_node = current_node.node_at(k);
                 break;
@@ -197,9 +200,23 @@ bool radix_tree::insert(const unsigned char* key, std::size_t size)
         }
         if (next_node == current_node)
             break; // No outgoing edge.
+        grandparent_node = parent_node;
         parent_node = current_node;
         current_node = next_node;
     }
+
+    return match_result{i, j, edge_idx, gp_edge_idx,
+            current_node, parent_node, grandparent_node};
+}
+
+bool radix_tree::insert(const unsigned char* key, std::size_t size)
+{
+    match_result result = match(key, size);
+    std::size_t i = result.nkey;
+    std::size_t j = result.nprefix;
+    std::size_t edge_idx = result.edge_index;
+    node current_node = result.current_node;
+    node parent_node = result.parent_node;
 
     if (i != size) {
         // Not all characters match, we might have to split the node.
@@ -318,43 +335,14 @@ bool radix_tree::insert(const unsigned char* key, std::size_t size)
 
 bool radix_tree::erase(const unsigned char* key, std::size_t size)
 {
-    assert(key);
-    assert(size > 0);
-
-    std::size_t i = 0; // Number of characters matched in key.
-    std::size_t j = 0; // Number of characters matched in current node.
-    std::size_t edge_idx = 0; // Index of outgoing edge from the parent node.
-    std::size_t gp_edge_idx = 0; // Index of outgoing edge from grandparent.
-    node current_node = root_;
-    node parent_node = current_node;
-    node grandparent_node = current_node;
-
-    while ((current_node.prefix_length() > 0 || current_node.edgecount() > 0)
-           && i < size) {
-        for (j = 0; j < current_node.prefix_length(); ++j) {
-            if (current_node.prefix()[j] != key[i])
-                break;
-            ++i;
-        }
-        if (j != current_node.prefix_length())
-            break;
-
-        // Check if there's an outgoing edge from this node.
-        node next_node = current_node;
-        for (std::size_t k = 0; k < current_node.edgecount(); ++k) {
-            if (i < size && current_node.first_byte_at(k) == key[i]) {
-                gp_edge_idx = edge_idx;
-                edge_idx = k;
-                next_node = current_node.node_at(k);
-                break;
-            }
-        }
-        if (next_node == current_node)
-            break; // No outgoing edge.
-        grandparent_node = parent_node;
-        parent_node = current_node;
-        current_node = next_node;
-    }
+    match_result result = match(key, size);
+    std::size_t i = result.nkey;
+    std::size_t j = result.nprefix;
+    std::size_t edge_idx = result.edge_index;
+    std::size_t gp_edge_idx = result.gp_edge_index;
+    node current_node = result.current_node;
+    node parent_node = result.parent_node;
+    node grandparent_node = result.grandparent_node;
 
     if (i != size || j != current_node.prefix_length()
         || !current_node.refcount())
@@ -463,38 +451,11 @@ bool radix_tree::erase(const unsigned char* key, std::size_t size)
 
 bool radix_tree::contains(const unsigned char* key, std::size_t size) const
 {
-    assert(key);
-    assert(size > 0);
+    match_result result = match(key, size);
 
-    std::size_t i = 0; // Number of characters matched in key.
-    std::size_t j = 0; // Number of characters matched in current node.
-    node current_node = root_;
-
-    while ((current_node.prefix_length() > 0 || current_node.edgecount() > 0)
-           && i < size) {
-        for (j = 0; j < current_node.prefix_length(); ++j) {
-            if (current_node.prefix()[j] != key[i])
-                break;
-            ++i;
-        }
-        if (j != current_node.prefix_length())
-            break;
-
-        // Check if there's an outgoing edge from this node.
-        node parent_node = current_node;
-        for (std::size_t k = 0; k < current_node.edgecount(); ++k) {
-            if (i < size && current_node.first_byte_at(k) == key[i]) {
-                current_node = current_node.node_at(k);
-                break;
-            }
-        }
-        if (current_node == parent_node)
-            break; // No outgoing edge.
-    }
-
-    return i == size
-        && j == current_node.prefix_length()
-        && current_node.refcount();
+    return result.nkey == size
+        && result.nprefix == result.current_node.prefix_length()
+        && result.current_node.refcount();
 }
 
 std::size_t radix_tree::size() const

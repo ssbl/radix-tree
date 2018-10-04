@@ -39,6 +39,17 @@ node make_node(std::size_t refcount,
                std::size_t prefix_length,
                std::size_t nedges);
 
+struct match_result
+{
+    std::size_t nkey;
+    std::size_t nprefix;
+    std::size_t edge_index;
+    std::size_t gp_edge_index;
+    node current_node;
+    node parent_node;
+    node grandparent_node;
+};
+
 class radix_tree
 {
 public:
@@ -59,6 +70,7 @@ public:
     std::size_t size() const;
 
 private:
+    match_result match(const unsigned char* key, std::size_t size) const;
     node root_;
     std::size_t size_;
 };
