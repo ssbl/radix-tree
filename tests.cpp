@@ -160,19 +160,23 @@ static bool fuzz_test(std::size_t operations = 10)
             }
         } else if (set_size > 0) {
             std::string key;
-            auto idx = (static_cast<std::size_t>(std::rand()) % set_size) + 1;
+            auto idx = (static_cast<std::size_t>(std::rand()) % set.size());
             for (auto& item : set) {
-                if (item.second > 0)
-                    --idx;
-                if (!idx) {
-                    --set_size;
-                    --item.second;
+                if (idx == 0) {
                     key = item.first;
                     break;
                 }
+                --idx;
             }
             std::printf("erase: %s\n", key.c_str());
-            bool set_result = !key.empty();
+            bool set_result =
+                [&set,&key,&set_size]() {
+                if (set[key] == 0)
+                    return false;
+                --set[key];
+                --set_size;
+                return true;
+            }();
             bool tree_result = !key.empty() && tree_erase(tree, key);
             if (tree_result != set_result)
                 return false;
