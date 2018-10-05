@@ -181,6 +181,7 @@ static bool fuzz_test(std::size_t operations = 10)
             if (tree_result != set_result)
                 return false;
         }
+        assert(set_size == tree.size());
     }
 
     assert(set_size == tree.size());
