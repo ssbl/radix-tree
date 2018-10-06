@@ -1,0 +1,5 @@
+language: cpp
+
+script: mkdir build && cd build && cmake .. && make && ./rt-tests
+
+compiler: clang
