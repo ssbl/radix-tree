@@ -151,7 +151,7 @@ static bool fuzz_test(std::size_t operations = 10)
             std::size_t len = (static_cast<std::size_t>(std::rand())
                                % key_length) + 1;
             std::string key = random_key(len);
-            std::printf("insert: %s\n", key.c_str());
+            // std::printf("insert: %s\n", key.c_str());
             bool tree_result = tree_insert(tree, key);
             bool set_result = ++set[key] == 1;
             ++set_size;
@@ -168,7 +168,7 @@ static bool fuzz_test(std::size_t operations = 10)
                 }
                 --idx;
             }
-            std::printf("erase: %s\n", key.c_str());
+            // std::printf("erase: %s\n", key.c_str());
             bool set_result =
                 [&set,&key,&set_size]() {
                 if (set[key] == 0)
@@ -185,6 +185,7 @@ static bool fuzz_test(std::size_t operations = 10)
     }
 
     assert(set_size == tree.size());
+    std::printf("%lu keys in tree\n", tree.size());
 
     return true;
 }
@@ -198,6 +199,6 @@ int main()
     insert_test3();
     erase_test1();
     erase_test2();
-    for (int i = 0; i < 100; ++i)
-        assert(fuzz_test(1000));
+    // for (int i = 0; i < 100; ++i)
+        assert(fuzz_test(100000));
 }
