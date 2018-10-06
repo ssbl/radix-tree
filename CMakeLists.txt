@@ -12,7 +12,6 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   target_compile_options(rt-tests PRIVATE "-Werror")
   target_compile_options(rt-tests PRIVATE "-Weverything")
   target_compile_options(rt-tests PRIVATE "-Wno-c++98-compat")
-  target_compile_options(rt-tests PRIVATE "-fsanitize=address,undefined")
 endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
