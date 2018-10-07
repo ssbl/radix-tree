@@ -4,7 +4,7 @@ matrix:
   include:
     os: linux
     env:
-      - COMPILER="clang++6.0"
+      - COMPILER="clang++-6.0"
       - FLAGS="-Werror -g -fsanitize=address,undefined"
     addons:
       apt:
