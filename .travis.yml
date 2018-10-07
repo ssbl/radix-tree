@@ -19,7 +19,7 @@ install:
   - export CXX="$COMPILER"
 
 script:
-  - mkdir build && cd build && cmake .. -DCMAKE_CXX_COMPILER="$COMPILER" -DCMAKE_CXX_FLAGS="$FLAGS"
+  - mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="$FLAGS"
   - make && ./rt-tests
 
 notifications:
