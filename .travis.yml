@@ -15,6 +15,10 @@ matrix:
           - ubuntu-toolchain-r-test
           - llvm-toolchain-trusty-6.0
 
+install:
+  - export CXX="$COMPILER"
+  - "$CXX" --version
+
 script:
   - mkdir build && cd build && cmake .. -DCMAKE_CXX_COMPILER="$COMPILER" -DCMAKE_CXX_FLAGS="$FLAGS"
   - make && ./rt-tests
