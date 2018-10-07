@@ -1,5 +1,23 @@
 language: cpp
 
-script: mkdir build && cd build && cmake .. && make && ./rt-tests
+matrix:
+  include:
+    os: linux
+    env:
+      - COMPILER="clang++6.0"
+      - FLAGS="-Werror -g -fsanitize=address,undefined"
+    addons:
+      apt:
+        packages:
+          - clang-6.0
+          - g++-6
+        sources:
+          - ubuntu-toolchain-r-test
+          - llvm-toolchain-trusty-6.0
 
-compiler: clang
+script:
+  - mkdir build && cd build && cmake .. -DCMAKE_CXX_COMPILER="$COMPILER" -DCMAKE_CXX_FLAGS="$FLAGS"
+  - make && ./rt-tests
+
+notifications:
+  email: false
