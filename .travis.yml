@@ -20,7 +20,7 @@ install:
 
 script:
   - mkdir build && cd build && cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="$FLAGS"
-  - make && ./rt-tests
+  - make && ctest --output-on-failure
 
 notifications:
   email: false
