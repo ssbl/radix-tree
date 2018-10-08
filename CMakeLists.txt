@@ -4,7 +4,10 @@ project(radix-tree VERSION 0.1.0)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_executable(rt-tests radix_tree.cpp tests.cpp)
+add_library(radix-tree radix_tree.cpp radix_tree.hpp)
+
+enable_testing()
+add_subdirectory(test)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   target_compile_options(rt-tests PRIVATE "-Weverything")
