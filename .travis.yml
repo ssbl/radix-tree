@@ -2,18 +2,23 @@ language: cpp
 
 matrix:
   include:
-    os: linux
-    env:
-      - COMPILER="clang++-6.0"
-      - FLAGS="-Werror -g -fsanitize=address,undefined"
-    addons:
-      apt:
-        packages:
-          - clang-6.0
-          - g++-6
-        sources:
-          - ubuntu-toolchain-r-test
-          - llvm-toolchain-trusty-6.0
+    - os: osx
+      osx_image: xcode9
+      env:
+        - COMPILER="clang++"
+
+    - os: linux
+      env:
+        - COMPILER="clang++-6.0"
+        - FLAGS="-Werror -g -fsanitize=address,undefined"
+      addons:
+        apt:
+          packages:
+            - clang-6.0
+            - g++-6
+          sources:
+            - ubuntu-toolchain-r-test
+            - llvm-toolchain-trusty-6.0
 
 install:
   - export CXX="$COMPILER"
