@@ -6,6 +6,7 @@ matrix:
       osx_image: xcode9
       env:
         - COMPILER="clang++"
+        - FLAGS="-Werror -g -fsanitize=address,undefined"
 
     - os: linux
       env:
