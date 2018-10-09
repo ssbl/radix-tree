@@ -38,6 +38,7 @@ std::string random_key(std::minstd_rand& rng, std::size_t key_length)
 }
 
 constexpr std::size_t operations = 100000;
+constexpr std::size_t key_length = 50;
 
 }
 
@@ -47,14 +48,14 @@ TEST_CASE("fuzz", "[fuzz]")
     radix_tree tree;
     std::unordered_map<std::string, std::size_t> set;
     std::size_t set_size = 0;
-    std::size_t key_length = 50;
 
-    std::minstd_rand rng;
-    rng.seed(static_cast<unsigned>(std::time(nullptr)));
+    auto seed = static_cast<unsigned>(std::time(nullptr));
+    std::minstd_rand rng(seed);
+    CAPTURE(seed);
 
     for (std::size_t i = 0; i < operations; ++i) {
         std::string key;
-        if (rng() % 2) {
+        if (rng() % 2 == 1) {
             std::size_t len = (static_cast<std::size_t>(rng())
                                % key_length) + 1;
             key = random_key(rng, len);
@@ -63,8 +64,8 @@ TEST_CASE("fuzz", "[fuzz]")
             bool set_result = ++set[key] == 1;
             ++set_size;
             REQUIRE(tree_result == set_result);
-        } else if (set_size > 0) {
-            auto idx = (static_cast<std::size_t>(rng()) % set.size());
+        } else if (set.size() > 0) {
+            auto idx = static_cast<std::size_t>(rng()) % set.size();
             for (auto& item : set) {
                 if (idx == 0) {
                     key = item.first;
