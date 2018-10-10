@@ -64,7 +64,9 @@ public:
 
     bool contains(const unsigned char* key, std::size_t size) const;
 
-    // TODO: apply
+    // Applies the function supplied to each key in the tree.
+    void apply(void (*func)(unsigned char* data, std::size_t size, void* arg),
+                void* arg);
 
     void print();
     std::size_t size() const;

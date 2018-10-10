@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstring>
 #include <utility>
+#include <vector>
 
 node::node(unsigned char* data)
     : data_(data)
@@ -456,6 +457,32 @@ bool radix_tree::contains(const unsigned char* key, std::size_t size) const
     return result.nkey == size
         && result.nprefix == result.current_node.prefix_length()
         && result.current_node.refcount();
+}
+
+static void visit_keys(node n,
+                       std::vector<unsigned char>& buffer,
+                       void (*func)(unsigned char* data,
+                                    std::size_t size,
+                                    void* arg),
+                       void *arg)
+{
+    for (std::size_t i = 0; i < n.prefix_length(); ++i)
+        buffer.push_back(n.prefix()[i]);
+    if (n.refcount() > 0)
+        func(static_cast<unsigned char*>(buffer.data()), buffer.size(), arg);
+    for (std::size_t i = 0; i < n.edgecount(); ++i)
+        visit_keys(n.node_at(i), buffer, func, arg);
+    for (std::size_t i = 0; i < n.prefix_length(); ++i)
+        buffer.pop_back();
+}
+
+void radix_tree::apply(void (*func)(unsigned char* data,
+                                    std::size_t size,
+                                    void* arg),
+                       void* arg)
+{
+    std::vector<unsigned char> buffer;
+    visit_keys(root_, buffer, func, arg);
 }
 
 std::size_t radix_tree::size() const
