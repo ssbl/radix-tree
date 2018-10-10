@@ -87,6 +87,4 @@ TEST_CASE("fuzz", "[fuzz]")
         }
         REQUIRE(set_size == tree.size());
     }
-
-    REQUIRE(set_size == tree.size());
 }

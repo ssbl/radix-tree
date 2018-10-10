@@ -46,11 +46,6 @@ TEST_CASE("insertion", "[insert]")
         REQUIRE(tree_insert(tree, "test"));
         REQUIRE_FALSE(tree_insert(tree, "test"));
     }
-
-    SECTION("check if size is updated correctly")
-    {
-        // Adapted from the example in the wikipedia article.
-    }
 }
 
 TEST_CASE("deletion", "[erase]")
