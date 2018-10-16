@@ -4,6 +4,32 @@
 #include <cstddef>
 #include <cstdint>
 
+// Wrapper type for a node's data layout.
+//
+// There are 3 32-bit unsigned integers that act as a header. These
+// integers represent the following values in this order:
+//
+// (1) The reference count of the key held by the node. This is 0 if
+// the node doesn't hold a key.
+//
+// (2) The number of characters in the node's prefix. The prefix is a
+// part of one or more keys in the tree, e.g. the prefix of all nodes
+// in a trie consists of a single character.
+//
+// (3) The number of outgoing edges from this node.
+//
+// The rest of the layout consists of 3 chunks in this order:
+//
+// (1) The node's prefix as a sequence of one or more bytes. The root
+// node always has an empty prefix, unlike other nodes in the tree.
+//
+// (2) The first byte of the prefix of each of this node's children.
+//
+// (3) The pointer to the data layout of each child.
+//
+// The link to each child is looked up using its index, e.g. the child
+// with index 0 will have its first byte and node pointer at the start
+// of the chunk of first bytes and node pointers respectively.
 struct node
 {
     unsigned char* data_;

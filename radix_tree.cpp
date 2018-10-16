@@ -175,7 +175,7 @@ match_result radix_tree::match(const unsigned char* key, std::size_t size) const
     std::size_t j = 0; // Number of characters matched in current node.
     std::size_t edge_idx = 0; // Index of outgoing edge from the parent node.
     std::size_t gp_edge_idx = 0; // Index of outgoing edge from grandparent.
-    node current_node = root_;
+    node current_node = root_; // The node we stopped matching at.
     node parent_node = current_node;
     node grandparent_node = current_node;
 
@@ -220,7 +220,7 @@ bool radix_tree::insert(const unsigned char* key, std::size_t size)
     node parent_node = result.parent_node;
 
     if (i != size) {
-        // Not all characters match, we might have to split the node.
+        // Not all characters in the key match.
         if (i == 0 || j == current_node.prefix_length()) {
             // The mismatch is at one of the outgoing edges, so we
             // create an edge from the current node to a new leaf node
@@ -243,12 +243,12 @@ bool radix_tree::insert(const unsigned char* key, std::size_t size)
                          current_node.node_ptrs() - 1,
                          (current_node.edgecount() - 1) * sizeof(void*));
 
-            // Add an edge to the new node.
+            // Add a link to the new node.
             current_node.set_edge_at(current_node.edgecount() - 1,
                                      key[i], key_node);
 
-            // We could be at the root node, since it holds zero
-            // characters in its prefix.
+            // We need to update all pointers to the current node
+            // after the call to resize().
             if (current_node.prefix_length() == 0)
                 root_.data_ = current_node.data_;
             else
@@ -278,14 +278,13 @@ bool radix_tree::insert(const unsigned char* key, std::size_t size)
 
         // Resize the current node to accommodate a prefix comprising
         // the matched characters and 2 outgoing edges to the above
-        // nodes. Set the refcount to 0 since this node's prefix
-        // wasn't already inserted.
+        // nodes. Set the refcount to 0 since this node doesn't hold a
+        // key.
         current_node.resize(j, 2);
         current_node.set_refcount(0);
 
         // Add links to the new nodes. We don't need to copy the
-        // prefix bytes since the above operation retains those in the
-        // resized node.
+        // prefix since resize() retains it in the current node.
         current_node.set_edge_at(0, key_node.prefix()[0], key_node);
         current_node.set_edge_at(1, split_node.prefix()[0], split_node);
 
@@ -294,10 +293,9 @@ bool radix_tree::insert(const unsigned char* key, std::size_t size)
         return true;
     }
 
-    // All characters in the key match, but we still might need to split.
     if (j != current_node.prefix_length()) {
-        // Not all characters from the current node's prefix match,
-        // and there are no more characters from the key to match.
+        // All characters in the key match, but not all characters
+        // from the current node's prefix match.
 
         // Create a node that contains the rest of the characters from
         // the current node's prefix and the outgoing edges from the
@@ -309,8 +307,8 @@ bool radix_tree::insert(const unsigned char* key, std::size_t size)
         split_node.set_first_bytes(current_node.first_bytes());
         split_node.set_node_ptrs(current_node.node_ptrs());
 
-        // Resize the current node to hold the matched characters from
-        // its prefix and one edge to the new node.
+        // Resize the current node to hold only the matched characters
+        // from its prefix and one edge to the new node.
         current_node.resize(j, 1);
 
         // Add an edge to the split node and set the refcount to 1
@@ -328,7 +326,6 @@ bool radix_tree::insert(const unsigned char* key, std::size_t size)
     assert(i == size);
     assert(j == current_node.prefix_length());
 
-    // This node might not be marked as a key, even if all characters match.
     ++size_;
     current_node.set_refcount(current_node.refcount() + 1);
     return current_node.refcount() == 1;
@@ -357,7 +354,10 @@ bool radix_tree::erase(const unsigned char* key, std::size_t size)
         return true;
 
     std::size_t outgoing_edges = current_node.edgecount();
+
     if (outgoing_edges > 1)
+        // This node can't be merged with any other node, so there's
+        // nothing more to do.
         return true;
 
     if (outgoing_edges == 1) {
@@ -388,8 +388,9 @@ bool radix_tree::erase(const unsigned char* key, std::size_t size)
 
     if (parent_node.edgecount() == 2 && parent_node.refcount() == 0
         && parent_node != root_) {
-        // The current node is a leaf node, and its parent is not a
-        // key. We can merge the parent node with its other child node.
+        // Removing this node leaves the parent with one child.
+        // If the parent doesn't hold a key or if it isn't the root,
+        // we can merge it with its single child node.
         assert(edge_idx < 2);
         node other_child = parent_node.node_at(!edge_idx);
 
